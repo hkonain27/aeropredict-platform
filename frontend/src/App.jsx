@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,65 +37,17 @@ import {
   Activity,
   Filter,
   RefreshCcw,
+  Clock,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
-const summaryCards = [
-  { title: "Flights Analyzed", value: "184,230", change: "+12.4%", icon: Plane },
-  { title: "Avg Delay", value: "18 min", change: "-3.2%", icon: Clock3 },
-  { title: "High-Risk Weather Days", value: "47", change: "+6.8%", icon: CloudRain },
-  { title: "Prediction Accuracy", value: "87.9%", change: "+1.1%", icon: TrendingUp },
-];
+const IconMapping = {
+  Plane: Plane,
+  Clock3: Clock3,
+  CloudRain: CloudRain,
+  TrendingUp: TrendingUp,
+};
 
-const monthlyDelayData = [
-  { month: "Jan", avgDelay: 22, predicted: 20 },
-  { month: "Feb", avgDelay: 19, predicted: 18 },
-  { month: "Mar", avgDelay: 25, predicted: 23 },
-  { month: "Apr", avgDelay: 17, predicted: 16 },
-  { month: "May", avgDelay: 15, predicted: 14 },
-  { month: "Jun", avgDelay: 24, predicted: 21 },
-  { month: "Jul", avgDelay: 29, predicted: 26 },
-  { month: "Aug", avgDelay: 21, predicted: 20 },
-  { month: "Sep", avgDelay: 16, predicted: 15 },
-  { month: "Oct", avgDelay: 14, predicted: 13 },
-  { month: "Nov", avgDelay: 20, predicted: 18 },
-  { month: "Dec", avgDelay: 31, predicted: 28 },
-];
-
-const airportRiskData = [
-  { airport: "ATL", risk: 84 },
-  { airport: "CLT", risk: 73 },
-  { airport: "JFK", risk: 79 },
-  { airport: "ORD", risk: 88 },
-  { airport: "DFW", risk: 68 },
-  { airport: "LAX", risk: 55 },
-];
-
-const causeBreakdown = [
-  { name: "Weather", value: 34 },
-  { name: "Carrier", value: 26 },
-  { name: "NAS", value: 18 },
-  { name: "Late Aircraft", value: 15 },
-  { name: "Security", value: 7 },
-];
-
-const forecastData = [
-  { day: "Mon", actual: 14, predicted: 17 },
-  { day: "Tue", actual: 19, predicted: 22 },
-  { day: "Wed", actual: 12, predicted: 13 },
-  { day: "Thu", actual: 21, predicted: 25 },
-  { day: "Fri", actual: 28, predicted: 31 },
-  { day: "Sat", actual: 26, predicted: 29 },
-  { day: "Sun", actual: 18, predicted: 21 },
-];
-
-const mockFlights = [
-  { id: "AA102", route: "CLT → JFK", airport: "CLT", airline: "American", weather: "Rain", predictedDelay: 42, status: "High Risk", confidence: 91 },
-  { id: "DL248", route: "ATL → ORD", airport: "ATL", airline: "Delta", weather: "Storm", predictedDelay: 58, status: "Critical", confidence: 94 },
-  { id: "UA771", route: "EWR → LAX", airport: "EWR", airline: "United", weather: "Clear", predictedDelay: 9, status: "Low Risk", confidence: 82 },
-  { id: "WN503", route: "DAL → HOU", airport: "DAL", airline: "Southwest", weather: "Wind", predictedDelay: 27, status: "Moderate", confidence: 86 },
-  { id: "B6291", route: "JFK → MCO", airport: "JFK", airline: "JetBlue", weather: "Snow", predictedDelay: 49, status: "High Risk", confidence: 90 },
-];
 
 const statusStyles = {
   "Low Risk": "bg-green-100 text-green-700 border-green-200",
@@ -107,13 +59,45 @@ const statusStyles = {
 const pieColors = ["#1d4ed8", "#3b82f6", "#60a5fa", "#93c5fd", "#bfdbfe"];
 
 export default function App() {
+  //
+  const [data, setData] = useState({
+    summaryCards: [],
+    monthlyDelayData: [],
+    airportRiskData: [],
+    causeBreakdown: [],
+    forecastData: [],
+    mockFlights: [],
+  });
+  const [loading, setLoading] = useState(true);
+
   const [airportFilter, setAirportFilter] = useState("all");
   const [weatherFilter, setWeatherFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [dateRange, setDateRange] = useState("7days");
 
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await fetch("http://localhost:5001/api/dashboard-data");
+        if(!response.ok) {
+          throw new Error("Network response was not ok");
+        }
+        const data = await response.json();
+        setData(data);
+        setLoading(false);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+  //
+
+
   const filteredFlights = useMemo(() => {
-    return mockFlights.filter((flight) => {
+    return data.mockFlights.filter((flight) => {
       const matchesAirport = airportFilter === "all" || flight.airport === airportFilter;
       const matchesWeather = weatherFilter === "all" || flight.weather.toLowerCase() === weatherFilter.toLowerCase();
       const matchesSearch =
@@ -122,7 +106,18 @@ export default function App() {
         flight.airline.toLowerCase().includes(search.toLowerCase());
       return matchesAirport && matchesWeather && matchesSearch;
     });
-  }, [airportFilter, weatherFilter, search]);
+  }, [airportFilter, weatherFilter, search, data.mockFlights]);
+
+  if(loading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <RefreshCcw className="animate-spin" />
+      </div>
+    );
+  }
+
+  //
+
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -162,7 +157,7 @@ export default function App() {
         </Alert>
 
         <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {summaryCards.map((card, index) => {
+          {data.summaryCards.map((card, index) => {
             const Icon = card.icon;
             return (
               <motion.div
@@ -200,7 +195,7 @@ export default function App() {
             </CardHeader>
             <CardContent className="h-[320px]">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={monthlyDelayData}>
+                <LineChart data={data.monthlyDelayData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
                   <YAxis />
@@ -221,8 +216,8 @@ export default function App() {
             <CardContent className="h-[320px]">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={causeBreakdown} dataKey="value" nameKey="name" innerRadius={60} outerRadius={95} paddingAngle={3}>
-                    {causeBreakdown.map((entry, index) => (
+                  <Pie data={data.causeBreakdown} dataKey="value" nameKey="name" innerRadius={60} outerRadius={95} paddingAngle={3}>
+                    {data.causeBreakdown.map((entry, index) => (
                       <Cell key={entry.name} fill={pieColors[index % pieColors.length]} />
                     ))}
                   </Pie>
@@ -250,7 +245,7 @@ export default function App() {
                 </CardHeader>
                 <CardContent className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={airportRiskData}>
+                    <BarChart data={data.airportRiskData}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="airport" />
                       <YAxis />
@@ -293,7 +288,7 @@ export default function App() {
                 </CardHeader>
                 <CardContent className="h-[320px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={forecastData}>
+                    <AreaChart data={data.forecastData}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="day" />
                       <YAxis />
