@@ -298,15 +298,15 @@ export default function App() {
                 <CardContent className="space-y-5">
                   <div className="rounded-2xl bg-slate-50 p-4">
                     <div className="mb-2 flex items-center gap-2 text-sm font-medium"><MapPin className="h-4 w-4" /> Highest current risk</div>
-                    <p className="text-sm text-slate-600">ORD and ATL show the strongest sustained delay risk in this analysis.</p>
+                    <p className="text-sm text-slate-600">ORD and ATL show the strongest sustained delay risk based on January 2024 flight data.</p>
                   </div>
                   <div className="rounded-2xl bg-slate-50 p-4">
                     <div className="mb-2 flex items-center gap-2 text-sm font-medium"><CloudRain className="h-4 w-4" /> Weather signal</div>
-                    <p className="text-sm text-slate-600">Rain, storms, and snow are the strongest predictive features.</p>
+                    <p className="text-sm text-slate-600">Departure hour and distance are the strongest numeric predictors in the trained model.</p>
                   </div>
                   <div className="rounded-2xl bg-slate-50 p-4">
                     <div className="mb-2 flex items-center gap-2 text-sm font-medium"><Activity className="h-4 w-4" /> Model confidence</div>
-                    <p className="text-sm text-slate-600">Predictions above 85% confidence are highlighted for operations and passenger alerts.</p>
+                    <p className="text-sm text-slate-600">Random Forest model trained on 560k flights. ROC AUC: 0.66. Predicts 15+ minute delays.</p>
                   </div>
                 </CardContent>
               </Card>

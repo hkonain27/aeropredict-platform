@@ -43,7 +43,7 @@ def predict():
 
     record = Prediction(
         airline=airline, origin=origin, destination=destination,
-        dep_hour=dep_hour, day_of_week=day_of_week, month=1, distance=distance,
+        dep_hour=dep_hour, day_of_week=day_of_week, distance=distance,
         prediction=prediction, prediction_label=prediction_label, delay_probability=delay_probability
     )
     db.session.add(record)
