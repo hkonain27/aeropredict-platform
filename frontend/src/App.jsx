@@ -77,6 +77,7 @@ export default function App() {
   const [predicting, setPredicting] = useState(false);
   const [predictionResult, setPredictionResult] = useState(null);
   const [predictionError, setPredictionError] = useState(null);
+  const [history, setHistory] = useState([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -106,6 +107,18 @@ export default function App() {
     });
   }, [airportFilter, weatherFilter, search, data.mockFlights]);
 
+  const fetchHistory = async () => {
+    try {
+      const res = await fetch("http://localhost:5001/predictions");
+      const json = await res.json();
+      if (json.status === "success") setHistory(json.predictions);
+    } catch (err) {
+      console.error("Error fetching history:", err);
+    }
+  };
+
+  useEffect(() => { fetchHistory(); }, []);
+
   const handleFormChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
@@ -132,6 +145,7 @@ export default function App() {
         setPredictionError(json.message || "Prediction failed");
       } else {
         setPredictionResult(json);
+        fetchHistory();
       }
     } catch (err) {
       setPredictionError("Could not connect to backend");
@@ -334,9 +348,14 @@ export default function App() {
                   <Input placeholder="Day of Week (1=Mon, 7=Sun)" type="number" value={form.day_of_week} onChange={(e) => handleFormChange("day_of_week", e.target.value)} className="rounded-xl" />
                   <Input placeholder="Distance (miles)" type="number" value={form.distance} onChange={(e) => handleFormChange("distance", e.target.value)} className="rounded-xl" />
 
-                  <Button className="w-full rounded-xl" onClick={handlePredict} disabled={predicting}>
-                    {predicting ? "Predicting..." : "Run Prediction"}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button className="flex-1 rounded-xl" onClick={handlePredict} disabled={predicting}>
+                      {predicting ? "Predicting..." : "Run Prediction"}
+                    </Button>
+                    <Button variant="outline" className="rounded-xl" onClick={() => { setForm(EMPTY_FORM); setPredictionResult(null); setPredictionError(null); }}>
+                      Reset
+                    </Button>
+                  </div>
 
                   {predictionError && (
                     <Alert className="rounded-xl border-red-200 bg-red-50">
@@ -359,6 +378,53 @@ export default function App() {
                 </CardContent>
               </Card>
             </div>
+
+            {history.length > 0 && (
+              <Card className="mt-4 rounded-2xl border-none shadow-sm">
+                <CardHeader>
+                  <CardTitle>Prediction History</CardTitle>
+                  <CardDescription>Last {history.length} predictions saved to database</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[800px] border-separate border-spacing-y-2">
+                      <thead>
+                        <tr className="text-left text-sm text-slate-500">
+                          <th className="px-4">Route</th>
+                          <th className="px-4">Airline</th>
+                          <th className="px-4">Dep Hour</th>
+                          <th className="px-4">Day</th>
+                          <th className="px-4">Distance</th>
+                          <th className="px-4">Result</th>
+                          <th className="px-4">Probability</th>
+                          <th className="px-4">Time</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {history.map((p) => (
+                          <tr key={p.id} className="bg-slate-50 text-sm">
+                            <td className="rounded-l-xl px-4 py-3 font-medium">{p.origin} → {p.destination}</td>
+                            <td className="px-4 py-3">{p.airline}</td>
+                            <td className="px-4 py-3">{p.dep_hour}:00</td>
+                            <td className="px-4 py-3">{p.day_of_week}</td>
+                            <td className="px-4 py-3">{p.distance} mi</td>
+                            <td className="px-4 py-3">
+                              <Badge variant="outline" className={`rounded-full border ${
+                                p.prediction === 1 ? "bg-red-100 text-red-700 border-red-200" : "bg-green-100 text-green-700 border-green-200"
+                              }`}>
+                                {p.prediction_label}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-3">{(p.delay_probability * 100).toFixed(1)}%</td>
+                            <td className="rounded-r-xl px-4 py-3 text-slate-400">{new Date(p.created_at).toLocaleTimeString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="flights">
