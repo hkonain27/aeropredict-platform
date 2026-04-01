@@ -33,7 +33,7 @@ def predict():
     if distance < 0:
         return jsonify({"status": "error", "message": "distance must be a positive number"}), 400
 
-    prediction, prediction_label, delay_probability = make_prediction({
+    prediction, prediction_label, delay_probability, feature_importances = make_prediction({
         "airline": airline, "origin": origin, "destination": destination,
         "dep_hour": dep_hour, "day_of_week": day_of_week, "distance": distance
     })
@@ -54,5 +54,6 @@ def predict():
         },
         "prediction": prediction,
         "prediction_label": prediction_label,
-        "delay_probability": delay_probability
+        "delay_probability": delay_probability,
+        "feature_importances": feature_importances
     }), 200

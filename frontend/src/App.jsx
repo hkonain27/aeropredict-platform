@@ -58,6 +58,40 @@ const EMPTY_FORM = {
   distance: "",
 };
 
+const validateField = (field, value) => {
+  switch (field) {
+    case "airline":
+    case "origin":
+    case "destination":
+      if (!value.trim()) return "Required";
+      if (!/^[A-Z0-9]{2,3}$/i.test(value.trim())) return "Must be 2-3 letters (e.g. UA, JFK)";
+      return null;
+    case "dep_hour": {
+      const n = Number(value);
+      if (value === "") return "Required";
+      if (isNaN(n) || !Number.isInteger(n)) return "Must be a whole number";
+      if (n < 0 || n > 23) return "Must be between 0 and 23";
+      return null;
+    }
+    case "day_of_week": {
+      const n = Number(value);
+      if (value === "") return "Required";
+      if (isNaN(n) || !Number.isInteger(n)) return "Must be a whole number";
+      if (n < 1 || n > 7) return "Must be between 1 and 7";
+      return null;
+    }
+    case "distance": {
+      const n = Number(value);
+      if (value === "") return "Required";
+      if (isNaN(n) || !Number.isInteger(n)) return "Must be a whole number";
+      if (n <= 0) return "Must be greater than 0";
+      return null;
+    }
+    default:
+      return null;
+  }
+};
+
 export default function App() {
   const [data, setData] = useState({
     summaryCards: [],
@@ -74,6 +108,7 @@ export default function App() {
   const [dateRange, setDateRange] = useState("7days");
 
   const [form, setForm] = useState(EMPTY_FORM);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [predicting, setPredicting] = useState(false);
   const [predictionResult, setPredictionResult] = useState(null);
   const [predictionError, setPredictionError] = useState(null);
@@ -121,6 +156,12 @@ export default function App() {
 
   const handleFormChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
+    setFieldErrors((prev) => ({ ...prev, [field]: null }));
+  };
+
+  const handleBlur = (field) => {
+    const error = validateField(field, form[field]);
+    setFieldErrors((prev) => ({ ...prev, [field]: error }));
   };
 
   const handlePredict = async () => {
@@ -131,6 +172,18 @@ export default function App() {
     const { airline, origin, destination, dep_hour, day_of_week, distance } = form;
     if (!airline || !origin || !destination || dep_hour === "" || day_of_week === "" || distance === "") {
       setPredictionError("Please fill in all fields before running a prediction");
+      setPredicting(false);
+      return;
+    }
+
+    const errors = {};
+    Object.keys(form).forEach((field) => {
+      const err = validateField(field, form[field]);
+      if (err) errors[field] = err;
+    });
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setPredictionError("Please fix the errors above before running a prediction");
       setPredicting(false);
       return;
     }
@@ -349,18 +402,36 @@ export default function App() {
                   <CardDescription>Enter flight details to get a real-time delay prediction</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <Input placeholder="Airline (e.g. UA)" value={form.airline} onChange={(e) => handleFormChange("airline", e.target.value)} className="rounded-xl" />
-                  <Input placeholder="Origin (e.g. JFK)" value={form.origin} onChange={(e) => handleFormChange("origin", e.target.value)} className="rounded-xl" />
-                  <Input placeholder="Destination (e.g. LAX)" value={form.destination} onChange={(e) => handleFormChange("destination", e.target.value)} className="rounded-xl" />
-                  <Input placeholder="Departure Hour (0–23)" type="number" value={form.dep_hour} onChange={(e) => handleFormChange("dep_hour", e.target.value)} className="rounded-xl" />
-                  <Input placeholder="Day of Week (1=Mon, 7=Sun)" type="number" value={form.day_of_week} onChange={(e) => handleFormChange("day_of_week", e.target.value)} className="rounded-xl" />
-                  <Input placeholder="Distance (miles)" type="number" value={form.distance} onChange={(e) => handleFormChange("distance", e.target.value)} className="rounded-xl" />
+                  <div>
+                    <Input placeholder="Airline (e.g. UA)" value={form.airline} onChange={(e) => handleFormChange("airline", e.target.value)} onBlur={() => handleBlur("airline")} className={`rounded-xl ${fieldErrors.airline ? "border-red-400" : ""}`} />
+                    {fieldErrors.airline && <p className="mt-1 text-xs text-red-500">{fieldErrors.airline}</p>}
+                  </div>
+                  <div>
+                    <Input placeholder="Origin (e.g. JFK)" value={form.origin} onChange={(e) => handleFormChange("origin", e.target.value)} onBlur={() => handleBlur("origin")} className={`rounded-xl ${fieldErrors.origin ? "border-red-400" : ""}`} />
+                    {fieldErrors.origin && <p className="mt-1 text-xs text-red-500">{fieldErrors.origin}</p>}
+                  </div>
+                  <div>
+                    <Input placeholder="Destination (e.g. LAX)" value={form.destination} onChange={(e) => handleFormChange("destination", e.target.value)} onBlur={() => handleBlur("destination")} className={`rounded-xl ${fieldErrors.destination ? "border-red-400" : ""}`} />
+                    {fieldErrors.destination && <p className="mt-1 text-xs text-red-500">{fieldErrors.destination}</p>}
+                  </div>
+                  <div>
+                    <Input placeholder="Departure Hour (0–23)" type="number" value={form.dep_hour} onChange={(e) => handleFormChange("dep_hour", e.target.value)} onBlur={() => handleBlur("dep_hour")} className={`rounded-xl ${fieldErrors.dep_hour ? "border-red-400" : ""}`} />
+                    {fieldErrors.dep_hour && <p className="mt-1 text-xs text-red-500">{fieldErrors.dep_hour}</p>}
+                  </div>
+                  <div>
+                    <Input placeholder="Day of Week (1=Mon, 7=Sun)" type="number" value={form.day_of_week} onChange={(e) => handleFormChange("day_of_week", e.target.value)} onBlur={() => handleBlur("day_of_week")} className={`rounded-xl ${fieldErrors.day_of_week ? "border-red-400" : ""}`} />
+                    {fieldErrors.day_of_week && <p className="mt-1 text-xs text-red-500">{fieldErrors.day_of_week}</p>}
+                  </div>
+                  <div>
+                    <Input placeholder="Distance (miles)" type="number" value={form.distance} onChange={(e) => handleFormChange("distance", e.target.value)} onBlur={() => handleBlur("distance")} className={`rounded-xl ${fieldErrors.distance ? "border-red-400" : ""}`} />
+                    {fieldErrors.distance && <p className="mt-1 text-xs text-red-500">{fieldErrors.distance}</p>}
+                  </div>
 
                   <div className="flex gap-2">
                     <Button className="flex-1 rounded-xl" onClick={handlePredict} disabled={predicting}>
                       {predicting ? "Predicting..." : "Run Prediction"}
                     </Button>
-                    <Button variant="outline" className="rounded-xl" onClick={() => { setForm(EMPTY_FORM); setPredictionResult(null); setPredictionError(null); }}>
+                    <Button variant="outline" className="rounded-xl" onClick={() => { setForm(EMPTY_FORM); setFieldErrors({}); setPredictionResult(null); setPredictionError(null); }}>
                       Reset
                     </Button>
                   </div>
@@ -381,6 +452,22 @@ export default function App() {
                         Delay probability: <span className="font-medium">{(predictionResult.delay_probability * 100).toFixed(1)}%</span>
                       </p>
                       <Progress value={predictionResult.delay_probability * 100} className="mt-2 h-2" />
+                      {predictionResult.feature_importances && (
+                        <div className="mt-4">
+                          <p className="mb-2 text-xs font-medium text-slate-500">What influenced this prediction</p>
+                          {predictionResult.feature_importances.map((f) => (
+                            <div key={f.feature} className="mb-1">
+                              <div className="flex justify-between text-xs text-slate-600 mb-0.5">
+                                <span>{f.feature}</span>
+                                <span>{f.importance}%</span>
+                              </div>
+                              <div className="h-1.5 w-full rounded-full bg-slate-200">
+                                <div className="h-1.5 rounded-full bg-blue-500" style={{ width: `${f.importance}%` }} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </CardContent>
