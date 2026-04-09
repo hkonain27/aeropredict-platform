@@ -47,7 +47,7 @@ const statusStyles = {
   Critical: "bg-red-100 text-red-700 border-red-200",
 };
 
-const pieColors = ["#1d4ed8", "#3b82f6", "#60a5fa", "#93c5fd", "#bfdbfe"];
+const pieColors = ["#7dd3fc", "#818cf8", "#fde047", "#fb7185", "#34d399"];
 
 const EMPTY_FORM = {
   airline: "",
@@ -224,7 +224,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-7xl p-4 md:p-8">
         <motion.div
           initial={{ opacity: 0, y: 18 }}
@@ -239,7 +239,7 @@ export default function App() {
               </Badge>
             </div>
             <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Flight Delay Prediction Dashboard</h1>
-            <p className="mt-2 max-w-3xl text-sm text-slate-600 md:text-base">
+            <p className="mt-2 max-w-3xl text-sm text-muted-foreground md:text-base">
               Monitor historic delay patterns, compare weather impact, and run real-time delay predictions.
             </p>
           </div>
@@ -265,13 +265,13 @@ export default function App() {
                   <CardContent className="p-5">
                     <div className="flex items-start justify-between">
                       <div>
-                        <p className="text-sm text-slate-500">{card.title}</p>
+                        <p className="text-sm text-muted-foreground">{card.title}</p>
                         <h2 className="mt-2 text-3xl font-semibold">{card.value}</h2>
-                        <p className="mt-2 text-sm text-slate-500">
-                          vs last period <span className="font-medium text-slate-700">{card.change}</span>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          vs last period <span className="font-medium text-foreground">{card.change}</span>
                         </p>
                       </div>
-                      <div className="rounded-2xl bg-slate-100 p-3">
+                      <div className="rounded-2xl bg-muted-foreground p-3">
                         <Icon className="h-5 w-5" />
                       </div>
                     </div>
@@ -294,7 +294,11 @@ export default function App() {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
                   <YAxis />
-                  <Tooltip />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: "#f9fafb", borderRadius: "8px", borderColor: "#e5e7eb" }}
+                    itemStyle={{ color: "#1f2937" }}
+                    labelStyle={{ color: "#6b7280", fontSize: "12px" }}
+                  />
                   <Legend />
                   <Line type="monotone" dataKey="avgDelay" stroke="#0f172a" strokeWidth={3} name="Actual Avg Delay" />
                   <Line type="monotone" dataKey="predicted" stroke="#2563eb" strokeWidth={3} name="Predicted Delay" />
@@ -316,7 +320,11 @@ export default function App() {
                       <Cell key={entry.name} fill={pieColors[index % pieColors.length]} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: "#f9fafb", borderRadius: "8px", borderColor: "#e5e7eb" }}
+                    itemStyle={{ color: "#1f2937" }}
+                    labelStyle={{ color: "#6b7280", fontSize: "12px" }}
+                  />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
@@ -325,7 +333,7 @@ export default function App() {
         </div>
 
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="mb-4 grid w-full grid-cols-3 rounded-2xl bg-white p-1 shadow-sm md:w-[420px]">
+          <TabsList className="mb-4 grid w-full grid-cols-3 rounded-2xl bg-card p-1 shadow-sm md:w-[420px]">
             <TabsTrigger value="overview" className="rounded-xl">Overview</TabsTrigger>
             <TabsTrigger value="predictions" className="rounded-xl">Predictions</TabsTrigger>
             <TabsTrigger value="flights" className="rounded-xl">Flights</TabsTrigger>
@@ -340,12 +348,16 @@ export default function App() {
                 </CardHeader>
                 <CardContent className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={data.airportRiskData}>
+                    <BarChart data={data.airportRiskData} >
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="airport" />
                       <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="risk" radius={[8, 8, 0, 0]} fill="#2563eb" />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: "#f9fafb", borderRadius: "8px", borderColor: "#e5e7eb" }}
+                        itemStyle={{ color: "#1f2937" }}
+                        labelStyle={{ color: "#6b7280", fontSize: "12px" }}
+                      />
+                      <Bar dataKey="risk" radius={[8, 8, 0, 0]} fill="#2563eb"/>
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -358,15 +370,15 @@ export default function App() {
                 </CardHeader>
                 <CardContent className="space-y-5">
                   <div className="rounded-2xl bg-slate-50 p-4">
-                    <div className="mb-2 flex items-center gap-2 text-sm font-medium"><MapPin className="h-4 w-4" /> Highest current risk</div>
+                    <div className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-600"><MapPin className="h-4 w-4" /> Highest current risk</div>
                     <p className="text-sm text-slate-600">ORD and ATL show the strongest sustained delay risk based on January 2024 flight data.</p>
                   </div>
                   <div className="rounded-2xl bg-slate-50 p-4">
-                    <div className="mb-2 flex items-center gap-2 text-sm font-medium"><CloudRain className="h-4 w-4" /> Weather signal</div>
+                    <div className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-600"><CloudRain className="h-4 w-4" /> Weather signal</div>
                     <p className="text-sm text-slate-600">Departure hour and distance are the strongest numeric predictors in the trained model.</p>
                   </div>
                   <div className="rounded-2xl bg-slate-50 p-4">
-                    <div className="mb-2 flex items-center gap-2 text-sm font-medium"><Activity className="h-4 w-4" /> Model confidence</div>
+                    <div className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-600"><Activity className="h-4 w-4" /> Model confidence</div>
                     <p className="text-sm text-slate-600">Random Forest model trained on 560k flights. ROC AUC: 0.66. Predicts 15+ minute delays.</p>
                   </div>
                 </CardContent>
@@ -376,7 +388,7 @@ export default function App() {
 
           <TabsContent value="predictions">
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-              <Card className="rounded-2xl border-none shadow-sm xl:col-span-8">
+              <Card className="rounded-2xl border-none shadow-sm bg-card xl:col-span-8">
                 <CardHeader>
                   <CardTitle>7-Day Delay Forecast</CardTitle>
                   <CardDescription>Actual vs predicted delay trends</CardDescription>
@@ -387,7 +399,11 @@ export default function App() {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="day" />
                       <YAxis />
-                      <Tooltip />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: "#f9fafb", borderRadius: "8px", borderColor: "#e5e7eb" }}
+                        itemStyle={{ color: "#1f2937" }}
+                        labelStyle={{ color: "#6b7280", fontSize: "12px" }}
+                      />
                       <Legend />
                       <Area type="monotone" dataKey="actual" stroke="#0f172a" fill="#cbd5e1" name="Recent Actual" />
                       <Area type="monotone" dataKey="predicted" stroke="#2563eb" fill="#93c5fd" name="Predicted" />
@@ -497,8 +513,8 @@ export default function App() {
                       </thead>
                       <tbody>
                         {history.map((p) => (
-                          <tr key={p.id} className="bg-slate-50 text-sm">
-                            <td className="rounded-l-xl px-4 py-3 font-medium">{p.origin} → {p.destination}</td>
+                          <tr key={p.id} className="bg-muted/20 text-sm">
+                            <td className="rounded-l-xl px-4 py-3 font-medium text-foreground">{p.origin} → {p.destination}</td>
                             <td className="px-4 py-3">{p.airline}</td>
                             <td className="px-4 py-3">{p.dep_hour}:00</td>
                             <td className="px-4 py-3">{p.day_of_week}</td>
@@ -590,7 +606,7 @@ export default function App() {
                     </thead>
                     <tbody>
                       {filteredFlights.map((flight) => (
-                        <tr key={flight.id} className="rounded-2xl bg-slate-50 text-sm">
+                        <tr key={flight.id} className="rounded-2xl bg-slate-50 text-sm text-slate-600">
                           <td className="rounded-l-2xl px-4 py-4 font-semibold">{flight.id}</td>
                           <td className="px-4 py-4">{flight.route}</td>
                           <td className="px-4 py-4">{flight.airline}</td>
