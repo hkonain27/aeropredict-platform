@@ -7,6 +7,7 @@ from models import Prediction
 
 predict_bp = Blueprint("predict", __name__)
 
+
 @predict_bp.route("/predict", methods=["POST"])
 def predict():
     data = request.get_json()
@@ -37,18 +38,20 @@ def predict():
 
     arr_flights = estimate_arrivals(carrier, airport, month)
 
-    prediction, prediction_label, delay_probability, feature_importances = make_prediction({
-        "carrier": carrier,
-        "airport": airport,
-        "month": month,
-        "arr_flights": arr_flights
-    })
+    prediction, prediction_label, delay_probability, feature_importances = make_prediction(
+        {
+            "carrier": carrier,
+            "airport": airport,
+            "month": month,
+            "arr_flights": arr_flights,
+        }
+    )
     analysis = analyze_delay_risk(
         {
             "carrier": carrier,
             "airport": airport,
             "month": month,
-            "arr_flights": arr_flights
+            "arr_flights": arr_flights,
         },
         prediction_result={
             "prediction": prediction,
@@ -65,21 +68,23 @@ def predict():
         arr_flights=arr_flights,
         prediction=prediction,
         prediction_label=prediction_label,
-        delay_probability=delay_probability
+        delay_probability=delay_probability,
     )
     db.session.add(record)
     db.session.commit()
 
-    return jsonify({
-        "status": "success",
-        "input": {
-            "carrier": carrier,
-            "airport": airport,
-            "month": month,
-        },
-        "prediction": prediction,
-        "prediction_label": prediction_label,
-        "delay_probability": delay_probability,
-        "feature_importances": feature_importances,
-        "analysis": analysis
-    }), 200
+    return jsonify(
+        {
+            "status": "success",
+            "input": {
+                "carrier": carrier,
+                "airport": airport,
+                "month": month,
+            },
+            "prediction": prediction,
+            "prediction_label": prediction_label,
+            "delay_probability": delay_probability,
+            "feature_importances": feature_importances,
+            "analysis": analysis,
+        }
+    ), 200

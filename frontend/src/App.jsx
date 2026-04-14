@@ -367,15 +367,15 @@ export default function App() {
           <div>
             <div className="mb-2 flex items-center gap-2">
               <Badge className="rounded-full bg-blue-100 px-3 py-1 text-blue-700 hover:bg-blue-100">
-                Aviation Intelligence Platform
+                AeroPredict
               </Badge>
               <Badge variant="outline" className="rounded-full border-slate-200 bg-white text-slate-600">
                 arrival delay risk
               </Badge>
             </div>
-            <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Airport-Airline Delay Risk Dashboard</h1>
+            <h1 className="text-3xl font-bold tracking-tight md:text-4xl">AeroPredict</h1>
             <p className="mt-2 max-w-3xl text-sm text-slate-600 md:text-base">
-              Explore BTS arrival-delay trends by airline and airport, compare operational causes, and score delay risk using carrier, airport, and month.
+              Predict flight delay risk, explore saved delay patterns, and compare scenarios in one place.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -532,8 +532,8 @@ export default function App() {
                     <div className="mb-2 flex items-center gap-2 text-sm font-medium"><Activity className="h-4 w-4" /> Strongest system-wide cause</div>
                     <p className="text-sm text-slate-600">
                       {topCause
-                      ? `${prettyCauseName(topCause.name)} is currently the largest contributor to total delay minutes, accounting for about ${topCause.value}% of the overall delay burden.`
-                      : "Cause-level insights will appear here when cause totals are available."}
+                        ? `${prettyCauseName(topCause.name)} is currently the largest contributor to total delay minutes, accounting for about ${topCause.value}% of the overall delay burden.`
+                        : "Cause-level insights will appear here when cause totals are available."}
                     </p>
                   </div>
                   <div className="rounded-2xl bg-slate-50 p-4">
@@ -672,7 +672,7 @@ export default function App() {
                             {predictionResult.input.carrier} at {predictionResult.input.airport} in {MONTH_LABELS[predictionResult.input.month]}.
                           </p>
                         </div>
-                        <Badge variant="outline" className={`rounded-full border ${statusStyles[currentAnalysis?.risk_label || predictionResult.prediction_label] || statusStyles["Moderate"]}`}>
+                        <Badge variant="outline" className={`rounded-full border ${statusStyles[currentAnalysis?.risk_label || predictionResult.prediction_label] || statusStyles.Moderate}`}>
                           {(predictionResult.delay_probability * 100).toFixed(1)}%
                         </Badge>
                       </div>
@@ -691,7 +691,7 @@ export default function App() {
                                 {historicalContext?.label || "No matching historical context found"} - {currentAnalysis.historical.reliability} evidence
                               </p>
                             </div>
-                            <Badge variant="outline" className={`w-fit rounded-full border ${statusStyles[currentAnalysis.risk_label] || statusStyles["Moderate"]}`}>
+                            <Badge variant="outline" className={`w-fit rounded-full border ${statusStyles[currentAnalysis.risk_label] || statusStyles.Moderate}`}>
                               {currentAnalysis.risk_label}
                             </Badge>
                           </div>
@@ -908,7 +908,7 @@ export default function App() {
                                 </div>
                               </td>
                               <td className="rounded-r-2xl px-4 py-4">
-                                <Badge variant="outline" className={`rounded-full border ${statusStyles[flight.status] || statusStyles["Moderate"]}`}>
+                                <Badge variant="outline" className={`rounded-full border ${statusStyles[flight.status] || statusStyles.Moderate}`}>
                                   {flight.status}
                                 </Badge>
                               </td>
@@ -956,7 +956,7 @@ export default function App() {
                               <td className="px-4 py-3">{p.airport}</td>
                               <td className="px-4 py-3">{MONTH_LABELS[p.month] || p.month}</td>
                               <td className="px-4 py-3">
-                                <Badge variant="outline" className={`rounded-full border ${statusStyles[p.prediction_label] || statusStyles["Moderate"]}`}>
+                                <Badge variant="outline" className={`rounded-full border ${statusStyles[p.prediction_label] || statusStyles.Moderate}`}>
                                   {p.prediction_label}
                                 </Badge>
                               </td>
