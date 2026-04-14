@@ -6,6 +6,7 @@ from routes.health import health_bp
 from routes.predict import predict_bp
 from routes.predictions_history import predictions_history_bp
 from routes.dashboard import dashboard_bp
+from routes.analysis import analysis_bp
 
 
 def create_app(test_config=None):
@@ -27,6 +28,7 @@ def create_app(test_config=None):
     app.register_blueprint(predict_bp)
     app.register_blueprint(predictions_history_bp)
     app.register_blueprint(dashboard_bp)
+    app.register_blueprint(analysis_bp)
 
     with app.app_context():
         db.create_all()

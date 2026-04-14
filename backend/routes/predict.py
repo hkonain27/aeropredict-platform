@@ -1,5 +1,7 @@
 from flask import Blueprint, request, jsonify
 from services.predictor import make_prediction
+from services.delay_analysis import analyze_delay_risk
+from services.delay_data import estimate_arrivals
 from extensions import db
 from models import Prediction
 
@@ -12,36 +14,58 @@ def predict():
     if not data:
         return jsonify({"status": "error", "message": "No input data provided"}), 400
 
-    required_fields = ["airline", "origin", "destination", "dep_hour", "day_of_week", "distance"]
-    missing_fields = [f for f in required_fields if f not in data]
+    required_fields = ["carrier", "airport", "month"]
+    missing_fields = [f for f in required_fields if data.get(f) in [None, ""]]
     if missing_fields:
         return jsonify({"status": "error", "message": f"Missing required fields: {', '.join(missing_fields)}"}), 400
 
     try:
-        airline = str(data["airline"]).strip()
-        origin = str(data["origin"]).strip()
-        destination = str(data["destination"]).strip()
-        dep_hour = int(data["dep_hour"])
-        day_of_week = int(data["day_of_week"])
-        distance = int(data["distance"])
+        carrier = str(data["carrier"]).strip().upper()
+        airport = str(data["airport"]).strip().upper()
+        month = int(data["month"])
     except (ValueError, TypeError):
         return jsonify({"status": "error", "message": "Invalid data types provided"}), 400
-    if dep_hour < 0 or dep_hour > 23:
-        return jsonify({"status": "error", "message": "dep_hour must be between 0 and 23"}), 400
-    if day_of_week < 1 or day_of_week > 7:
-        return jsonify({"status": "error", "message": "day_of_week must be between 1 and 7"}), 400
-    if distance < 0:
-        return jsonify({"status": "error", "message": "distance must be a positive number"}), 400
+
+    if month < 1 or month > 12:
+        return jsonify({"status": "error", "message": "month must be between 1 and 12"}), 400
+
+    if len(carrier) not in [2, 3]:
+        return jsonify({"status": "error", "message": "carrier must be a 2-3 character carrier code"}), 400
+
+    if len(airport) != 3:
+        return jsonify({"status": "error", "message": "airport must be a 3-letter airport code"}), 400
+
+    arr_flights = estimate_arrivals(carrier, airport, month)
 
     prediction, prediction_label, delay_probability, feature_importances = make_prediction({
-        "airline": airline, "origin": origin, "destination": destination,
-        "dep_hour": dep_hour, "day_of_week": day_of_week, "distance": distance
+        "carrier": carrier,
+        "airport": airport,
+        "month": month,
+        "arr_flights": arr_flights
     })
+    analysis = analyze_delay_risk(
+        {
+            "carrier": carrier,
+            "airport": airport,
+            "month": month,
+            "arr_flights": arr_flights
+        },
+        prediction_result={
+            "prediction": prediction,
+            "prediction_label": prediction_label,
+            "delay_probability": delay_probability,
+            "feature_importances": feature_importances,
+        },
+    )
 
     record = Prediction(
-        airline=airline, origin=origin, destination=destination,
-        dep_hour=dep_hour, day_of_week=day_of_week, distance=distance,
-        prediction=prediction, prediction_label=prediction_label, delay_probability=delay_probability
+        carrier=carrier,
+        airport=airport,
+        month=month,
+        arr_flights=arr_flights,
+        prediction=prediction,
+        prediction_label=prediction_label,
+        delay_probability=delay_probability
     )
     db.session.add(record)
     db.session.commit()
@@ -49,11 +73,13 @@ def predict():
     return jsonify({
         "status": "success",
         "input": {
-            "airline": airline, "origin": origin, "destination": destination,
-            "dep_hour": dep_hour, "day_of_week": day_of_week, "distance": distance
+            "carrier": carrier,
+            "airport": airport,
+            "month": month,
         },
         "prediction": prediction,
         "prediction_label": prediction_label,
         "delay_probability": delay_probability,
-        "feature_importances": feature_importances
+        "feature_importances": feature_importances,
+        "analysis": analysis
     }), 200
