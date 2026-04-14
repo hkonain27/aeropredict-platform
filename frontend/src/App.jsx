@@ -39,6 +39,8 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 
+const API_BASE = "http://localhost:5001";
+
 const statusStyles = {
   "Low Risk": "bg-green-100 text-green-700 border-green-200",
   Moderate: "bg-yellow-100 text-yellow-700 border-yellow-200",
@@ -46,7 +48,12 @@ const statusStyles = {
   Critical: "bg-red-100 text-red-700 border-red-200",
 };
 
-const pieColors = ["#1d4ed8", "#3b82f6", "#60a5fa", "#93c5fd", "#bfdbfe"];
+const pieColors = ["#7dd3fc", "#818cf8", "#fde047", "#fb7185", "#34d399"];
+const tooltipStyles = {
+  contentStyle: { backgroundColor: "#f9fafb", borderRadius: "8px", borderColor: "#e5e7eb" },
+  itemStyle: { color: "#1f2937" },
+  labelStyle: { color: "#6b7280", fontSize: "12px" },
+};
 
 const EMPTY_FORM = {
   airline: "",
@@ -106,12 +113,26 @@ const validateField = (field, value) => {
   }
 };
 
+function WeatherSeverityBadge({ severity }) {
+  const styles = {
+    low: "bg-sky-100 text-sky-700 border-sky-200",
+    moderate: "bg-amber-100 text-amber-700 border-amber-200",
+    high: "bg-rose-100 text-rose-700 border-rose-200",
+  };
+
+  return (
+    <Badge variant="outline" className={`rounded-full border ${styles[severity] || styles.low}`}>
+      {severity}
+    </Badge>
+  );
+}
+
 function EmptyPanel({ title, description }) {
   return (
-    <div className="flex h-full min-h-[220px] items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center">
+    <div className="flex h-full min-h-[220px] items-center justify-center rounded-2xl border border-dashed border-slate-700 bg-slate-900/40 p-6 text-center">
       <div className="max-w-sm">
-        <p className="text-sm font-medium text-slate-700">{title}</p>
-        <p className="mt-2 text-sm text-slate-500">{description}</p>
+        <p className="text-sm font-medium text-slate-100">{title}</p>
+        <p className="mt-2 text-sm text-slate-400">{description}</p>
       </div>
     </div>
   );
@@ -142,7 +163,7 @@ export default function App() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch("http://localhost:5001/api/dashboard-data");
+        const response = await fetch(`${API_BASE}/api/dashboard-data`);
         if (!response.ok) throw new Error("Network response was not ok");
         const json = await response.json();
         setData(json);
@@ -184,7 +205,7 @@ export default function App() {
 
   const fetchHistory = async () => {
     try {
-      const res = await fetch("http://localhost:5001/predictions");
+      const res = await fetch(`${API_BASE}/predictions`);
       const json = await res.json();
       if (json.status === "success") setHistory(json.predictions);
     } catch (err) {
@@ -229,7 +250,7 @@ export default function App() {
     }
 
     try {
-      const response = await fetch("http://localhost:5001/predict", {
+      const response = await fetch(`${API_BASE}/predict`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -265,7 +286,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-7xl p-4 md:p-8">
         <motion.div
           initial={{ opacity: 0, y: 18 }}
@@ -276,12 +297,12 @@ export default function App() {
           <div>
             <div className="mb-2 flex items-center gap-2">
               <Badge className="rounded-full bg-blue-100 px-3 py-1 text-blue-700 hover:bg-blue-100">
-                Aviation Intelligence Platform
+                AeroPredict
               </Badge>
             </div>
-            <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Flight Delay Prediction Dashboard</h1>
-            <p className="mt-2 max-w-3xl text-sm text-slate-600 md:text-base">
-              Monitor historic delay patterns, compare weather impact, and run real-time delay predictions.
+            <h1 className="text-3xl font-bold tracking-tight md:text-4xl">AeroPredict</h1>
+            <p className="mt-2 max-w-3xl text-sm text-muted-foreground md:text-base">
+              Predict flight delay risk, explore saved delay patterns, and compare scenarios in one place.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -306,13 +327,13 @@ export default function App() {
                   <CardContent className="p-5">
                     <div className="flex items-start justify-between">
                       <div>
-                        <p className="text-sm text-slate-500">{card.title}</p>
+                        <p className="text-sm text-muted-foreground">{card.title}</p>
                         <h2 className="mt-2 text-3xl font-semibold">{card.value}</h2>
-                        <p className="mt-2 text-sm text-slate-500">
-                          vs last period <span className="font-medium text-slate-700">{card.change}</span>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          vs last period <span className="font-medium text-foreground">{card.change}</span>
                         </p>
                       </div>
-                      <div className="rounded-2xl bg-slate-100 p-3">
+                      <div className="rounded-2xl bg-muted p-3">
                         <Icon className="h-5 w-5" />
                       </div>
                     </div>
@@ -326,8 +347,8 @@ export default function App() {
         <div className="mb-6 grid grid-cols-1 gap-4 xl:grid-cols-12">
               <Card className="rounded-2xl border-none shadow-sm xl:col-span-8">
             <CardHeader>
-              <CardTitle>Monthly Delay Risk Trends</CardTitle>
-              <CardDescription>Average delay probability and delay-flag rate from saved predictions</CardDescription>
+              <CardTitle>Monthly Delay Trends</CardTitle>
+              <CardDescription>Average delay probability and predicted delay rate from saved scenarios</CardDescription>
             </CardHeader>
             <CardContent className="h-[320px]">
               {data.monthlyDelayData.length > 0 ? (
@@ -336,16 +357,16 @@ export default function App() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
                     <YAxis />
-                    <Tooltip />
+                    <Tooltip {...tooltipStyles} />
                     <Legend />
-                    <Line type="monotone" dataKey="avgDelay" stroke="#0f172a" strokeWidth={3} name="Avg Delay Probability" />
-                    <Line type="monotone" dataKey="predicted" stroke="#2563eb" strokeWidth={3} name="Delay Flag Rate" />
+                    <Line type="monotone" dataKey="avgDelay" stroke="#0f172a" strokeWidth={3} name="Average delay probability" />
+                    <Line type="monotone" dataKey="predicted" stroke="#2563eb" strokeWidth={3} name="Predicted delay rate" />
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
                 <EmptyPanel
                   title="No monthly trend data yet"
-                  description="Run and save a few predictions to start building monthly delay-risk trends."
+                  description="Run and save a few predictions to start building monthly trend summaries."
                 />
               )}
             </CardContent>
@@ -353,8 +374,8 @@ export default function App() {
 
           <Card className="rounded-2xl border-none shadow-sm xl:col-span-4">
             <CardHeader>
-              <CardTitle>Model Feature Importance</CardTitle>
-              <CardDescription>How the trained model weights the available flight features</CardDescription>
+              <CardTitle>Feature Importance</CardTitle>
+              <CardDescription>How the current model weights the available flight inputs</CardDescription>
             </CardHeader>
             <CardContent className="h-[320px]">
               {data.causeBreakdown.length > 0 ? (
@@ -365,7 +386,7 @@ export default function App() {
                         <Cell key={entry.name} fill={pieColors[index % pieColors.length]} />
                       ))}
                     </Pie>
-                    <Tooltip />
+                    <Tooltip {...tooltipStyles} />
                     <Legend />
                   </PieChart>
                 </ResponsiveContainer>
@@ -380,18 +401,18 @@ export default function App() {
         </div>
 
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="mb-4 grid w-full grid-cols-3 rounded-2xl bg-white p-1 shadow-sm md:w-[420px]">
+          <TabsList className="mb-4 grid w-full grid-cols-3 rounded-2xl bg-card p-1 shadow-sm md:w-[420px]">
             <TabsTrigger value="overview" className="rounded-xl">Overview</TabsTrigger>
-            <TabsTrigger value="predictions" className="rounded-xl">Predictions</TabsTrigger>
-            <TabsTrigger value="flights" className="rounded-xl">Flights</TabsTrigger>
+            <TabsTrigger value="predictions" className="rounded-xl">Predict</TabsTrigger>
+            <TabsTrigger value="flights" className="rounded-xl">Saved Flights</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview">
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
               <Card className="rounded-2xl border-none shadow-sm xl:col-span-7">
                 <CardHeader>
-                  <CardTitle>Airport Delay Risk Index</CardTitle>
-                  <CardDescription>Higher score means more consistent delay risk across recent data</CardDescription>
+                  <CardTitle>Airport Risk Snapshot</CardTitle>
+                  <CardDescription>Higher scores indicate more consistently elevated delay probability</CardDescription>
                 </CardHeader>
                 <CardContent className="h-[300px]">
                   {data.airportRiskData.length > 0 ? (
@@ -400,7 +421,7 @@ export default function App() {
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="airport" />
                         <YAxis />
-                        <Tooltip />
+                        <Tooltip {...tooltipStyles} />
                         <Bar dataKey="risk" radius={[8, 8, 0, 0]} fill="#2563eb" />
                       </BarChart>
                     </ResponsiveContainer>
@@ -415,29 +436,29 @@ export default function App() {
 
               <Card className="rounded-2xl border-none shadow-sm xl:col-span-5">
                 <CardHeader>
-                  <CardTitle>Operational Insights</CardTitle>
-                  <CardDescription>Quick-glance interpretation for decision-makers</CardDescription>
+                  <CardTitle>Summary Insights</CardTitle>
+                  <CardDescription>Short interpretations of the saved prediction activity</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-5">
-                  <div className="rounded-2xl bg-slate-50 p-4">
-                    <div className="mb-2 flex items-center gap-2 text-sm font-medium"><MapPin className="h-4 w-4" /> Highest current risk</div>
-                    <p className="text-sm text-slate-600">
+                  <div className="rounded-2xl bg-slate-900/45 p-4">
+                    <div className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-200"><MapPin className="h-4 w-4" /> Highest current risk</div>
+                    <p className="text-sm text-slate-400">
                       {topAirportRisk
                         ? `${topAirportRisk.airport} currently has the highest average delay risk in saved predictions at ${topAirportRisk.risk}%.`
                         : "Run a few predictions to populate airport-level risk insights."}
                     </p>
                   </div>
-                  <div className="rounded-2xl bg-slate-50 p-4">
-                    <div className="mb-2 flex items-center gap-2 text-sm font-medium"><CloudRain className="h-4 w-4" /> Weather signal</div>
-                    <p className="text-sm text-slate-600">
+                  <div className="rounded-2xl bg-slate-900/45 p-4">
+                    <div className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-200"><CloudRain className="h-4 w-4" /> Weather signal</div>
+                    <p className="text-sm text-slate-400">
                       {topFeature
                         ? `${topFeature.name} is the strongest overall feature in the current model, contributing ${topFeature.value}% of total importance.`
                         : "Feature importance will appear here once the model metadata is available."}
                     </p>
                   </div>
-                  <div className="rounded-2xl bg-slate-50 p-4">
-                    <div className="mb-2 flex items-center gap-2 text-sm font-medium"><Activity className="h-4 w-4" /> Model confidence</div>
-                    <p className="text-sm text-slate-600">
+                  <div className="rounded-2xl bg-slate-900/45 p-4">
+                    <div className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-200"><Activity className="h-4 w-4" /> Model confidence</div>
+                    <p className="text-sm text-slate-400">
                       {hasDashboardData
                         ? "Saved predictions show how the current Random Forest model scores each route for a 15+ minute departure delay."
                         : "This overview will become more informative as saved prediction history accumulates."}
@@ -453,7 +474,7 @@ export default function App() {
               <Card className="rounded-2xl border-none shadow-sm xl:col-span-8">
                 <CardHeader>
                   <CardTitle>Weekly Prediction Pattern</CardTitle>
-                  <CardDescription>Saved predictions grouped by the flight day selected in the form</CardDescription>
+                  <CardDescription>Saved scenarios grouped by the day-of-week input used in the predictor</CardDescription>
                 </CardHeader>
                 <CardContent className="h-[320px]">
                   {data.forecastData.some((item) => item.actual > 0 || item.predicted > 0) ? (
@@ -462,10 +483,10 @@ export default function App() {
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="day" />
                         <YAxis />
-                        <Tooltip />
+                        <Tooltip {...tooltipStyles} />
                         <Legend />
-                        <Area type="monotone" dataKey="actual" stroke="#0f172a" fill="#cbd5e1" name="Delay Flag Rate" />
-                        <Area type="monotone" dataKey="predicted" stroke="#2563eb" fill="#93c5fd" name="Avg Delay Probability" />
+                        <Area type="monotone" dataKey="actual" stroke="#0f172a" fill="#cbd5e1" name="Predicted delay rate" />
+                        <Area type="monotone" dataKey="predicted" stroke="#2563eb" fill="#93c5fd" name="Average delay probability" />
                       </AreaChart>
                     </ResponsiveContainer>
                   ) : (
@@ -479,8 +500,8 @@ export default function App() {
 
               <Card className="rounded-2xl border-none shadow-sm xl:col-span-4">
                 <CardHeader>
-                  <CardTitle>Run a Prediction</CardTitle>
-                  <CardDescription>Enter flight details to get a real-time delay prediction</CardDescription>
+                  <CardTitle>Run a Scenario</CardTitle>
+                  <CardDescription>Enter one flight setup to generate a real-time delay prediction</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div>
@@ -510,9 +531,9 @@ export default function App() {
 
                   <div className="flex gap-2">
                     <Button className="flex-1 rounded-xl" onClick={handlePredict} disabled={predicting}>
-                      {predicting ? "Predicting..." : "Run Prediction"}
+                      {predicting ? "Predicting..." : "Predict Delay Risk"}
                     </Button>
-                    <Button variant="outline" className="rounded-xl" onClick={() => { setForm(EMPTY_FORM); setFieldErrors({}); setPredictionResult(null); setComparisonBaseline(null); setPredictionError(null); }}>
+                    <Button variant="outline" className="rounded-xl" onClick={() => { setForm(EMPTY_FORM); setFieldErrors({}); setPredictionResult(null); setComparisonBaseline(null); setPredictionError(null); setFlightDataContext(null); setFlightDataError(null); }}>
                       Reset
                     </Button>
                   </div>
@@ -535,7 +556,7 @@ export default function App() {
                       <Progress value={predictionResult.delay_probability * 100} className="mt-2 h-2" />
                       {predictionResult.feature_importances && (
                         <div className="mt-4">
-                          <p className="mb-2 text-xs font-medium text-slate-500">What influenced this prediction</p>
+                          <p className="mb-2 text-xs font-medium text-slate-500">Top inputs influencing this result</p>
                           {predictionResult.feature_importances.map((f) => (
                             <div key={f.feature} className="mb-1">
                               <div className="flex justify-between text-xs text-slate-600 mb-0.5">
@@ -552,25 +573,54 @@ export default function App() {
                     </div>
                   )}
 
+                  {predictionResult?.weather_context && (
+                    <div className="rounded-xl border border-slate-700 bg-slate-900/45 p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="rounded-xl bg-slate-800 p-2 text-sky-300">
+                          <CloudRain className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-slate-100">Weather Context</p>
+                          <p className="mt-1 text-sm text-slate-300">{predictionResult.weather_context.headline}</p>
+                          <p className="mt-2 text-sm text-slate-400">{predictionResult.weather_context.summary}</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 space-y-3">
+                        {predictionResult.weather_context.drivers.map((driver) => (
+                          <div key={`${driver.label}-${driver.severity}`} className="rounded-xl bg-slate-800/80 p-3">
+                            <div className="flex items-center justify-between gap-3">
+                              <p className="text-sm font-medium text-slate-100">{driver.label}</p>
+                              <WeatherSeverityBadge severity={driver.severity} />
+                            </div>
+                            <p className="mt-2 text-sm text-slate-400">{driver.detail}</p>
+                          </div>
+                        ))}
+                      </div>
+
+                      <p className="mt-4 text-xs text-slate-500">{predictionResult.weather_context.disclaimer}</p>
+                    </div>
+                  )}
+
                   {predictionResult && comparisonBaseline && (
-                    <div className="rounded-xl border border-slate-200 bg-white p-4">
-                      <p className="text-sm font-medium text-slate-800">Scenario Comparison</p>
-                      <p className="mt-1 text-sm text-slate-600">
+                    <div className="rounded-xl border border-slate-700 bg-slate-900/45 p-4">
+                      <p className="text-sm font-medium text-slate-100">Scenario Comparison</p>
+                      <p className="mt-1 text-sm text-slate-300">
                         Compared with your previous prediction, delay risk
                         <span className={`ml-1 font-medium ${probabilityDelta >= 0 ? "text-red-600" : "text-green-600"}`}>
                           {probabilityDelta >= 0 ? "increased" : "decreased"} by {Math.abs(probabilityDelta).toFixed(1)} percentage points
                         </span>.
                       </p>
                       <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-                        <div className="rounded-xl bg-slate-50 p-3">
-                          <p className="text-slate-500">Previous</p>
-                          <p className="mt-1 font-medium">{comparisonBaseline.input.origin} {"->"} {comparisonBaseline.input.destination}</p>
-                          <p className="text-slate-600">{(comparisonBaseline.delay_probability * 100).toFixed(1)}% risk</p>
+                        <div className="rounded-xl bg-slate-800/70 p-3">
+                          <p className="text-slate-400">Previous</p>
+                          <p className="mt-1 font-medium text-slate-100">{comparisonBaseline.input.origin} {"->"} {comparisonBaseline.input.destination}</p>
+                          <p className="text-slate-300">{(comparisonBaseline.delay_probability * 100).toFixed(1)}% risk</p>
                         </div>
-                        <div className="rounded-xl bg-slate-50 p-3">
-                          <p className="text-slate-500">Current</p>
-                          <p className="mt-1 font-medium">{predictionResult.input.origin} {"->"} {predictionResult.input.destination}</p>
-                          <p className="text-slate-600">{(predictionResult.delay_probability * 100).toFixed(1)}% risk</p>
+                        <div className="rounded-xl bg-slate-800/70 p-3">
+                          <p className="text-slate-400">Current</p>
+                          <p className="mt-1 font-medium text-slate-100">{predictionResult.input.origin} {"->"} {predictionResult.input.destination}</p>
+                          <p className="text-slate-300">{(predictionResult.delay_probability * 100).toFixed(1)}% risk</p>
                         </div>
                       </div>
                     </div>
@@ -581,7 +631,7 @@ export default function App() {
 
             <Card className="mt-4 rounded-2xl border-none shadow-sm">
               <CardHeader>
-                <CardTitle>Prediction History</CardTitle>
+                <CardTitle>Saved Predictions</CardTitle>
                 <CardDescription>
                   {history.length > 0
                     ? `Last ${history.length} predictions saved to database`
@@ -593,7 +643,7 @@ export default function App() {
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[800px] border-separate border-spacing-y-2">
                       <thead>
-                        <tr className="text-left text-sm text-slate-500">
+                        <tr className="text-left text-sm text-slate-400">
                           <th className="px-4">Route</th>
                           <th className="px-4">Airline</th>
                           <th className="px-4">Dep Hour</th>
@@ -606,8 +656,8 @@ export default function App() {
                       </thead>
                       <tbody>
                         {history.map((p) => (
-                          <tr key={p.id} className="bg-slate-50 text-sm">
-                            <td className="rounded-l-xl px-4 py-3 font-medium">{p.origin} → {p.destination}</td>
+                          <tr key={p.id} className="bg-slate-900/45 text-sm text-slate-200">
+                            <td className="rounded-l-xl px-4 py-3 font-medium text-slate-100">{p.origin} → {p.destination}</td>
                             <td className="px-4 py-3">{p.airline}</td>
                             <td className="px-4 py-3">{p.dep_hour}:00</td>
                             <td className="px-4 py-3">{p.day_of_week}</td>
@@ -620,7 +670,7 @@ export default function App() {
                               </Badge>
                             </td>
                             <td className="px-4 py-3">{(p.delay_probability * 100).toFixed(1)}%</td>
-                            <td className="rounded-r-xl px-4 py-3 text-slate-400">{new Date(p.created_at + 'Z').toLocaleTimeString()}</td>
+                            <td className="rounded-r-xl px-4 py-3 text-slate-300">{new Date(p.created_at + 'Z').toLocaleTimeString()}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -642,7 +692,7 @@ export default function App() {
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
                     <CardTitle>Flight Risk Table</CardTitle>
-                    <CardDescription>Search and filter saved prediction records</CardDescription>
+                    <CardDescription>Search and filter saved prediction records by route, airport, and recency</CardDescription>
                   </div>
                   <div className="grid w-full gap-3 md:grid-cols-2 xl:grid-cols-3 lg:w-auto">
                     <div className="relative min-w-[220px]">
@@ -673,14 +723,14 @@ export default function App() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="mb-4 flex items-center gap-2 text-sm text-slate-500">
-                  <Filter className="h-4 w-4" /> Showing {filteredFlights.length} flights for {dateRange}
+                <div className="mb-4 flex items-center gap-2 text-sm text-slate-400">
+                  <Filter className="h-4 w-4" /> Showing {filteredFlights.length} saved scenarios for {dateRange}
                 </div>
                 {filteredFlights.length > 0 ? (
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[900px] border-separate border-spacing-y-3">
                       <thead>
-                        <tr className="text-left text-sm text-slate-500">
+                        <tr className="text-left text-sm text-slate-400">
                           <th className="px-4">Record</th>
                           <th className="px-4">Route</th>
                           <th className="px-4">Airline</th>
@@ -693,8 +743,8 @@ export default function App() {
                       </thead>
                       <tbody>
                         {filteredFlights.map((flight) => (
-                          <tr key={flight.id} className="rounded-2xl bg-slate-50 text-sm">
-                            <td className="rounded-l-2xl px-4 py-4 font-semibold">{flight.id}</td>
+                          <tr key={flight.id} className="rounded-2xl bg-slate-900/45 text-sm text-slate-200">
+                            <td className="rounded-l-2xl px-4 py-4 font-semibold text-slate-100">{flight.id}</td>
                             <td className="px-4 py-4">{flight.route}</td>
                             <td className="px-4 py-4">{flight.airline}</td>
                             <td className="px-4 py-4">{flight.day}</td>

@@ -55,6 +55,9 @@ class ApiRoutesTestCase(unittest.TestCase):
         self.assertIn("prediction_label", body)
         self.assertIn("delay_probability", body)
         self.assertIn("feature_importances", body)
+        self.assertIn("weather_context", body)
+        self.assertIn("headline", body["weather_context"])
+        self.assertIn("drivers", body["weather_context"])
 
         history_response = self.client.get("/predictions")
         history_body = history_response.get_json()
@@ -78,6 +81,38 @@ class ApiRoutesTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(body["status"], "error")
         self.assertIn("dep_hour", body["message"])
+
+    def test_predict_route_rejects_missing_fields(self):
+        response = self.client.post(
+            "/predict",
+            json={
+                "airline": "UA",
+                "origin": "JFK",
+            },
+        )
+        body = response.get_json()
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(body["status"], "error")
+        self.assertIn("destination", body["message"])
+
+    def test_predict_route_rejects_invalid_types(self):
+        response = self.client.post(
+            "/predict",
+            json={
+                "airline": "UA",
+                "origin": "JFK",
+                "destination": "LAX",
+                "dep_hour": "evening",
+                "day_of_week": 5,
+                "distance": 2475,
+            },
+        )
+        body = response.get_json()
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(body["status"], "error")
+        self.assertIn("Invalid data types", body["message"])
 
     def test_predictions_history_returns_saved_predictions(self):
         self.client.post(

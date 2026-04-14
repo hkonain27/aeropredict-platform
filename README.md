@@ -1,6 +1,6 @@
-# Aviation Intelligence Platform
+# AeroPredict
 
-A full-stack flight delay prediction system built with Flask, scikit-learn, React, and SQLite. The platform lets users submit flight details, get a real-time delay-risk prediction, compare scenarios, and review saved prediction history in a dashboard.
+AeroPredict is an aviation intelligence platform for predicting flight delay risk and exploring saved delay patterns. Built with Flask, scikit-learn, React, and SQLite, it lets users submit flight details, generate a real-time prediction, compare scenarios, and review historical prediction activity in a dashboard.
 
 ## What The App Does
 
@@ -25,8 +25,8 @@ aviation-intelligence-platform/
 
 ## Dataset
 
-- Source: [Flight Delay Dataset 2018-2024 on Kaggle](https://www.kaggle.com/datasets/shubhamsingh42/flight-delay-dataset-2018-2024?select=flight_data_2018_2024.csv)
-- Raw file in repo: `data/raw/flight_data_2018_2024.csv`
+- Source file used locally: `data/raw/flight_data_2024.csv`
+- Raw-data note: `data/raw/*.csv` is gitignored, so you should place the 2024 source CSV there locally before running preprocessing
 - Processed file in repo: `data/processed/flights_processed.csv`
 
 ## Model
@@ -41,10 +41,10 @@ aviation-intelligence-platform/
   - `day_of_week`
   - `distance`
 - Target:
-  - `DepDel15` = whether departure delay is 15+ minutes
-- Current reported metrics:
-  - ROC AUC: `0.66`
-  - Accuracy: `0.59`
+  - `delayed` = whether `dep_delay >= 15`
+- Current local training flow:
+  - `backend/scripts/train_model.py` trains a Random Forest from `data/processed/flights_processed.csv`
+  - the script defaults to a stratified sample so retraining stays practical on a local machine
 
 ## Backend
 
@@ -171,8 +171,15 @@ python -m unittest discover -s backend/tests
 
 1. Run `data/preprocessing.ipynb`
 2. Generate `data/processed/flights_processed.csv`
-3. Run `data/train_model.ipynb`
+3. Run `backend/scripts/train_model.py`
 4. Generate `data/processed/model.pkl`
+
+Example:
+
+```bash
+cd backend
+../.venv/bin/python scripts/train_model.py --sample-rows 50000
+```
 
 ## Current Scope Notes
 

@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from services.predictor import make_prediction
+from services.weather_context import build_weather_context
 from extensions import db
 from models import Prediction
 
@@ -37,6 +38,7 @@ def predict():
         "airline": airline, "origin": origin, "destination": destination,
         "dep_hour": dep_hour, "day_of_week": day_of_week, "distance": distance
     })
+    weather_context = build_weather_context(origin, destination, dep_hour, distance)
 
     record = Prediction(
         airline=airline, origin=origin, destination=destination,
@@ -55,5 +57,6 @@ def predict():
         "prediction": prediction,
         "prediction_label": prediction_label,
         "delay_probability": delay_probability,
-        "feature_importances": feature_importances
+        "feature_importances": feature_importances,
+        "weather_context": weather_context,
     }), 200
