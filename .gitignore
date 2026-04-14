@@ -6,7 +6,8 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
-data/raw/
+# Keep project datasets tracked so every teammate gets the same inputs.
+# Large CSVs are handled by Git LFS in .gitattributes.
 
 backend/predictions.db
 frontend/dist/

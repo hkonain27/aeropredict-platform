@@ -23,7 +23,7 @@ aviation-intelligence-platform/
 |-- frontend/         # React dashboard and prediction UI
 |-- scripts/          # Data preprocessing, model training, dashboard data build scripts
 `-- data/
-    |-- raw/          # Local raw source files, gitignored
+    |-- raw/          # Raw source files shared with Git LFS
     |-- processed/    # Processed datasets and trained model artifact
     |-- preprocessing.ipynb
     `-- train_model.ipynb
@@ -31,9 +31,11 @@ aviation-intelligence-platform/
 
 ## Dataset
 
-- Raw source file expected locally: `data/raw/airline_delay_cause.csv`
-- Raw data is gitignored, so place the source CSV there before running preprocessing
+- Raw source files shared through Git LFS:
+  - `data/raw/airline_delay_cause.csv`
+  - `data/raw/flight_data_2024.csv`
 - Active processed file in repo: `data/processed/delay_processed.csv`
+- 2024 processed flight file in repo through Git LFS: `data/processed/flights_processed.csv`
 - Dashboard snapshot: `backend/data/delay_dashboard.json`
 
 The older `flights_processed.csv` notebook workflow is still present for reference, but the running Flask app uses the delay-cause pipeline listed above.
@@ -176,6 +178,16 @@ The React frontend lives in `frontend/` and includes:
 
 - Python 3.13+
 - Node.js 18+
+- Git LFS, required for the shared raw and processed CSV datasets
+
+After cloning or pulling the repo, download the LFS-backed datasets:
+
+```bash
+git lfs install
+git lfs pull
+```
+
+If the app shows no results, first check that `data/raw/flight_data_2024.csv`, `data/raw/airline_delay_cause.csv`, and `data/processed/flights_processed.csv` are full-size data files rather than small Git LFS pointer files.
 
 ### Backend setup
 
