@@ -36,3 +36,18 @@ def estimate_arrivals(carrier, airport, month):
             return max(1, int(round(float(values.median()))))
 
     return 1
+
+
+def validate_known_carrier_airport(carrier, airport):
+    df = load_delay_data()
+    carrier = str(carrier).upper().strip()
+    airport = str(airport).upper().strip()
+
+    messages = []
+    if not bool((df["carrier"] == carrier).any()):
+        messages.append(f"Carrier {carrier} not found in historical dataset.")
+
+    if not bool((df["airport"] == airport).any()):
+        messages.append(f"Airport {airport} not found in historical dataset.")
+
+    return messages

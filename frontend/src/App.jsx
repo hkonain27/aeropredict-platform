@@ -335,7 +335,22 @@ export default function App() {
   const monthBaseline = currentAnalysis?.historical?.month_baseline;
   const causeMix = historicalContext?.cause_breakdown || [];
   const matchedRecords = currentAnalysis?.matched_records || [];
-  const displayRiskLabel = currentAnalysis?.risk_label || predictionResult?.prediction_label;
+  const liveWeather = predictionResult?.live_weather;
+  const weatherRisk = predictionResult?.weather_risk;
+  const flight2024Context = predictionResult?.flight_2024_context;
+  const flight2024Summary = flight2024Context?.summary;
+  const flight2024Risk = predictionResult?.flight_2024_risk;
+  const rawModel = predictionResult?.raw_model;
+  const finalRiskScore = predictionResult?.final_risk_score;
+  const finalRiskComponents = predictionResult?.final_risk_components || [];
+  const riskContributionData = finalRiskComponents.map((component) => ({
+    name: component.label,
+    contribution: component.contribution_percent,
+    weight: component.weight_percent,
+    score: Math.round(component.score * 1000) / 10,
+  }));
+  const finalRiskReasons = predictionResult?.final_risk_reasons || [];
+  const displayRiskLabel = predictionResult?.final_risk_label || predictionResult?.prediction_label || currentAnalysis?.risk_label;
   const predictionPanelClass = displayRiskLabel === "High Delay Risk"
     ? "border-red-200 bg-red-50"
     : displayRiskLabel === "Elevated Delay Risk"
@@ -346,6 +361,13 @@ export default function App() {
     : displayRiskLabel === "Elevated Delay Risk"
       ? "text-yellow-700"
       : "text-green-700";
+  const weatherRiskStyles = {
+    High: "bg-red-100 text-red-700 border-red-200",
+    Moderate: "bg-yellow-100 text-yellow-700 border-yellow-200",
+    Low: "bg-green-100 text-green-700 border-green-200",
+    Unknown: "bg-slate-100 text-slate-700 border-slate-200",
+  };
+  const weatherRiskBadgeClass = weatherRiskStyles[weatherRisk?.level] || weatherRiskStyles.Unknown;
 
   if (loading) {
     return (
@@ -480,7 +502,7 @@ export default function App() {
           </Card>
         </div>
 
-        <Tabs defaultValue="overview" className="w-full">
+        <Tabs defaultValue="predictions" className="w-full">
           <TabsList className="mb-4 grid w-full grid-cols-3 rounded-2xl bg-white p-1 shadow-sm md:w-[420px]">
             <TabsTrigger value="overview" className="rounded-xl">Overview</TabsTrigger>
             <TabsTrigger value="predictions" className="rounded-xl">Predictions</TabsTrigger>
@@ -551,35 +573,8 @@ export default function App() {
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
               <Card className="rounded-2xl border-none shadow-sm xl:col-span-7">
                 <CardHeader>
-                  <CardTitle>Carrier Risk Comparison</CardTitle>
-                  <CardDescription>Top carrier-level delay rates from the real dashboard dataset</CardDescription>
-                </CardHeader>
-                <CardContent className="h-[320px]">
-                  {data.forecastData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={data.forecastData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="day" />
-                        <YAxis />
-                        <Tooltip formatter={(value) => `${value}%`} />
-                        <Legend />
-                        <Area type="monotone" dataKey="actual" stroke="#0f172a" fill="#cbd5e1" name="Observed delay rate" />
-                        <Area type="monotone" dataKey="predicted" stroke="#2563eb" fill="#93c5fd" name="Dashboard risk reference" />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <EmptyPanel
-                      title="No carrier comparison yet"
-                      description="Carrier-level trend data will appear here when the backend dashboard route is wired up."
-                    />
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card className="rounded-2xl border-none shadow-sm xl:col-span-5">
-                <CardHeader>
                   <CardTitle>Search Delay Risk</CardTitle>
-                  <CardDescription>Enter a carrier, airport, and month to compare model risk with BTS history</CardDescription>
+                  <CardDescription>Run the main prediction and see the weighted evidence behind the final risk</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -672,15 +667,190 @@ export default function App() {
                             {predictionResult.input.carrier} at {predictionResult.input.airport} in {MONTH_LABELS[predictionResult.input.month]}.
                           </p>
                         </div>
-                        <Badge variant="outline" className={`rounded-full border ${statusStyles[currentAnalysis?.risk_label || predictionResult.prediction_label] || statusStyles.Moderate}`}>
-                          {(predictionResult.delay_probability * 100).toFixed(1)}%
+                        <Badge variant="outline" className={`rounded-full border ${statusStyles[displayRiskLabel] || statusStyles.Moderate}`}>
+                          {finalRiskScore !== undefined ? `${(finalRiskScore * 100).toFixed(1)}%` : `${(predictionResult.delay_probability * 100).toFixed(1)}%`}
                         </Badge>
                       </div>
 
-                      <Progress value={predictionResult.delay_probability * 100} className="mt-3 h-2" />
+                      <Progress value={(finalRiskScore ?? predictionResult.delay_probability) * 100} className="mt-3 h-2" />
                       <p className="mt-2 text-xs text-slate-500">
-                        Model score means this scenario looks delay-heavy compared with the training data.
+                        Final risk is a weighted score anchored by the model and supported by historical records, 2024 flights, and live METAR weather.
                       </p>
+                      {rawModel && (
+                        <p className="mt-2 text-xs text-slate-500">
+                          Raw model alone: {rawModel.prediction_label} at {(rawModel.delay_probability * 100).toFixed(1)}%.
+                        </p>
+                      )}
+                      {riskContributionData.length > 0 && (
+                        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+                          <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                              <p className="text-sm font-medium text-slate-800">Weighted Risk Breakdown</p>
+                              <p className="text-xs text-slate-500">Contribution to the final score after data-quality weighting</p>
+                            </div>
+                            <Badge variant="outline" className="w-fit rounded-full border-slate-200 bg-slate-50 text-slate-700">
+                              model-led score
+                            </Badge>
+                          </div>
+                          <div className="h-[210px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={riskContributionData} layout="vertical" margin={{ left: 20, right: 20 }}>
+                                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                                <XAxis type="number" domain={[0, 50]} tickFormatter={(value) => `${value}%`} />
+                                <YAxis type="category" dataKey="name" width={86} />
+                                <Tooltip
+                                  formatter={(value, name, props) => {
+                                    if (name === "contribution") return [`${value}%`, "Final-score contribution"];
+                                    return [`${props.payload.weight}%`, "Effective weight"];
+                                  }}
+                                />
+                                <Bar dataKey="contribution" fill="#2563eb" radius={[0, 8, 8, 0]} />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
+                          <div className="grid grid-cols-1 gap-2 text-xs text-slate-600 md:grid-cols-2">
+                            {finalRiskComponents.map((component) => (
+                              <div key={component.key} className="rounded-xl bg-slate-50 p-3">
+                                <p className="font-medium text-slate-800">{component.label}: {Math.round(component.score * 1000) / 10}% signal</p>
+                                <p className="mt-1">Effective weight: {component.weight_percent}%</p>
+                                <p className="mt-1">{component.detail}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {finalRiskReasons.length > 0 && (
+                        <ul className="mt-2 space-y-1 text-xs text-slate-600">
+                          {finalRiskReasons.map((reason) => (
+                            <li key={reason}>{reason}</li>
+                          ))}
+                        </ul>
+                      )}
+
+                      {flight2024Context && (
+                        <div className="mt-4 space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                              <p className="text-sm font-medium text-slate-800">2024 Flight Records</p>
+                              <p className="mt-1 text-sm text-slate-600">
+                                {flight2024Summary?.label || flight2024Context.message || "No matching 2024 context"}
+                              </p>
+                            </div>
+                            <Badge variant="outline" className={`w-fit rounded-full border ${weatherRiskStyles[flight2024Risk?.level] || weatherRiskStyles.Unknown}`}>
+                              {flight2024Risk?.level || "Unknown"} 2024 evidence
+                            </Badge>
+                          </div>
+
+                          {flight2024Context.available && flight2024Summary ? (
+                            <>
+                              <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+                                <div className="rounded-xl bg-slate-50 p-3">
+                                  <p className="text-slate-500">Flights</p>
+                                  <p className="mt-1 text-lg font-semibold text-slate-900">
+                                    {formatCount(flight2024Summary.flights)}
+                                  </p>
+                                </div>
+                                <div className="rounded-xl bg-slate-50 p-3">
+                                  <p className="text-slate-500">Delay rate</p>
+                                  <p className="mt-1 text-lg font-semibold text-slate-900">
+                                    {formatPercent(flight2024Summary.delay_rate)}
+                                  </p>
+                                </div>
+                                <div className="rounded-xl bg-slate-50 p-3">
+                                  <p className="text-slate-500">Cancelled</p>
+                                  <p className="mt-1 text-lg font-semibold text-slate-900">
+                                    {formatPercent(flight2024Summary.cancellation_rate)}
+                                  </p>
+                                </div>
+                                <div className="rounded-xl bg-slate-50 p-3">
+                                  <p className="text-slate-500">Avg delay</p>
+                                  <p className="mt-1 text-lg font-semibold text-slate-900">
+                                    {flight2024Summary.avg_arrival_delay_minutes ?? "n/a"} min
+                                  </p>
+                                </div>
+                              </div>
+
+                              {flight2024Risk?.drivers?.length > 0 && (
+                                <ul className="space-y-1 text-sm text-slate-600">
+                                  {flight2024Risk.drivers.map((driver) => (
+                                    <li key={driver}>{driver}</li>
+                                  ))}
+                                </ul>
+                              )}
+                            </>
+                          ) : (
+                            <p className="text-sm text-slate-600">
+                              {flight2024Context.message || "2024 flight-record evidence is unavailable."}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {(liveWeather || weatherRisk) && (
+                        <div className="mt-4 space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                              <p className="text-sm font-medium text-slate-800">Live METAR Weather</p>
+                              <p className="mt-1 text-sm text-slate-600">
+                                {liveWeather?.station || predictionResult.input.airport}
+                                {liveWeather?.cached ? " - cached for this minute" : ""}
+                              </p>
+                            </div>
+                            <Badge variant="outline" className={`w-fit rounded-full border ${weatherRiskBadgeClass}`}>
+                              {weatherRisk?.level || "Unknown"} weather risk
+                            </Badge>
+                          </div>
+
+                          {liveWeather?.available ? (
+                            <>
+                              <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+                                <div className="rounded-xl bg-slate-50 p-3">
+                                  <p className="text-slate-500">Category</p>
+                                  <p className="mt-1 text-lg font-semibold text-slate-900">
+                                    {liveWeather.flight_category || "n/a"}
+                                  </p>
+                                </div>
+                                <div className="rounded-xl bg-slate-50 p-3">
+                                  <p className="text-slate-500">Visibility</p>
+                                  <p className="mt-1 text-lg font-semibold text-slate-900">
+                                    {liveWeather.visibility_miles ?? "n/a"} mi
+                                  </p>
+                                </div>
+                                <div className="rounded-xl bg-slate-50 p-3">
+                                  <p className="text-slate-500">Wind</p>
+                                  <p className="mt-1 text-lg font-semibold text-slate-900">
+                                    {liveWeather.wind_speed_kt ?? "n/a"} kt
+                                  </p>
+                                </div>
+                                <div className="rounded-xl bg-slate-50 p-3">
+                                  <p className="text-slate-500">Gusts</p>
+                                  <p className="mt-1 text-lg font-semibold text-slate-900">
+                                    {liveWeather.wind_gust_kt ?? "n/a"} kt
+                                  </p>
+                                </div>
+                              </div>
+
+                              {weatherRisk?.drivers?.length > 0 && (
+                                <ul className="space-y-1 text-sm text-slate-600">
+                                  {weatherRisk.drivers.map((driver) => (
+                                    <li key={driver}>{driver}</li>
+                                  ))}
+                                </ul>
+                              )}
+
+                              {liveWeather.raw_text && (
+                                <p className="rounded-xl bg-slate-50 p-3 text-xs text-slate-500">
+                                  {liveWeather.raw_text}
+                                </p>
+                              )}
+                            </>
+                          ) : (
+                            <p className="text-sm text-slate-600">
+                              {liveWeather?.message || weatherRisk?.drivers?.[0] || "Live weather is unavailable."}
+                            </p>
+                          )}
+                        </div>
+                      )}
 
                       {currentAnalysis && (
                         <div className="mt-4 space-y-4 rounded-xl border border-slate-200 bg-white p-4">
@@ -826,6 +996,33 @@ export default function App() {
                         </div>
                       </div>
                     </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="rounded-2xl border-none shadow-sm xl:col-span-5">
+                <CardHeader>
+                  <CardTitle>Carrier Risk Comparison</CardTitle>
+                  <CardDescription>Top carrier-level delay rates from the dashboard dataset</CardDescription>
+                </CardHeader>
+                <CardContent className="h-[320px]">
+                  {data.forecastData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={data.forecastData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="day" />
+                        <YAxis />
+                        <Tooltip formatter={(value) => `${value}%`} />
+                        <Legend />
+                        <Area type="monotone" dataKey="actual" stroke="#0f172a" fill="#cbd5e1" name="Observed delay rate" />
+                        <Area type="monotone" dataKey="predicted" stroke="#2563eb" fill="#93c5fd" name="Dashboard risk reference" />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <EmptyPanel
+                      title="No carrier comparison yet"
+                      description="Carrier-level trend data will appear here when the backend dashboard route is wired up."
+                    />
                   )}
                 </CardContent>
               </Card>

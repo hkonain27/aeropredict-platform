@@ -7,8 +7,6 @@ __pycache__/
 Thumbs.db
 
 data/raw/
-!data/raw/
-data/raw/*
-!data/raw/flight_data_2024.csv
 
 backend/predictions.db
+frontend/dist/

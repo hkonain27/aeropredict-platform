@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 
 from services.delay_analysis import analyze_delay_risk
+from services.delay_data import validate_known_carrier_airport
 
 
 analysis_bp = Blueprint("analysis", __name__)
@@ -52,5 +53,9 @@ def delay_risk_lookup():
     if error:
         message, status_code = error
         return jsonify({"status": "error", "message": message}), status_code
+
+    unknown_messages = validate_known_carrier_airport(parsed["carrier"], parsed["airport"])
+    if unknown_messages:
+        return jsonify({"status": "error", "message": " ".join(unknown_messages)}), 400
 
     return jsonify(analyze_delay_risk(parsed)), 200

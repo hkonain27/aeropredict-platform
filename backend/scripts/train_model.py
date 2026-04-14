@@ -6,36 +6,30 @@ import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, roc_auc_score
-from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 
-CATEGORICAL_FEATURES = ["airline", "origin", "destination"]
-NUMERIC_FEATURES = ["dep_hour", "day_of_week", "distance"]
+CATEGORICAL_FEATURES = ["carrier", "airport"]
+NUMERIC_FEATURES = ["month", "arr_flights"]
 FEATURE_COLUMNS = CATEGORICAL_FEATURES + NUMERIC_FEATURES
-TARGET_COLUMN = "delayed"
+TARGET_COLUMN = "is_delay_heavy"
+DATE_COLUMN = "period_date"
 
 
-def load_dataset(csv_path: Path, sample_rows: int | None) -> pd.DataFrame:
-    df = pd.read_csv(csv_path, usecols=FEATURE_COLUMNS + [TARGET_COLUMN])
-
-    if sample_rows is None or sample_rows >= len(df):
-        return df
-
-    sampled, _ = train_test_split(
-        df,
-        train_size=sample_rows,
-        random_state=42,
-        stratify=df[TARGET_COLUMN],
-    )
-    return sampled.reset_index(drop=True)
+def load_dataset(csv_path):
+    df = pd.read_csv(csv_path, parse_dates=[DATE_COLUMN])
+    required_columns = FEATURE_COLUMNS + [TARGET_COLUMN, DATE_COLUMN]
+    missing_columns = [column for column in required_columns if column not in df.columns]
+    if missing_columns:
+        raise ValueError(f"Missing required columns: {', '.join(missing_columns)}")
+    return df.dropna(subset=required_columns)
 
 
-def build_model(n_estimators: int, max_depth: int, min_samples_leaf: int) -> Pipeline:
+def build_model(n_estimators, max_depth, min_samples_leaf, n_jobs):
     preprocessor = ColumnTransformer(
         transformers=[
-            ("cat", OneHotEncoder(handle_unknown="ignore", sparse_output=False), CATEGORICAL_FEATURES),
+            ("cat", OneHotEncoder(handle_unknown="ignore"), CATEGORICAL_FEATURES),
             ("num", StandardScaler(), NUMERIC_FEATURES),
         ]
     )
@@ -45,7 +39,7 @@ def build_model(n_estimators: int, max_depth: int, min_samples_leaf: int) -> Pip
         max_depth=max_depth,
         min_samples_leaf=min_samples_leaf,
         random_state=42,
-        n_jobs=-1,
+        n_jobs=n_jobs,
         class_weight="balanced_subsample",
     )
 
@@ -58,49 +52,54 @@ def build_model(n_estimators: int, max_depth: int, min_samples_leaf: int) -> Pip
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Train the flight delay model.")
+    parser = argparse.ArgumentParser(description="Train the active AeroPredict delay-risk model.")
     parser.add_argument(
         "--data",
-        default="../../data/processed/flights_processed.csv",
-        help="Path to the processed CSV relative to backend/scripts/",
+        default="../../data/processed/delay_processed.csv",
+        help="Path to delay_processed.csv relative to backend/scripts/",
     )
     parser.add_argument(
         "--output",
-        default="../../data/processed/model.pkl",
+        default="../../data/processed/delay_model.pkl",
         help="Where to write the trained model relative to backend/scripts/",
     )
     parser.add_argument(
-        "--sample-rows",
-        type=int,
-        default=250000,
-        help="Stratified sample size to train on. Use 0 to train on the full dataset.",
+        "--test-start-date",
+        default="2025-01-01",
+        help="Rows on or after this date are used for testing.",
     )
-    parser.add_argument("--n-estimators", type=int, default=80)
-    parser.add_argument("--max-depth", type=int, default=18)
-    parser.add_argument("--min-samples-leaf", type=int, default=10)
+    parser.add_argument("--n-estimators", type=int, default=200)
+    parser.add_argument("--max-depth", type=int, default=20)
+    parser.add_argument("--min-samples-leaf", type=int, default=1)
+    parser.add_argument("--n-jobs", type=int, default=-1)
     args = parser.parse_args()
 
     base_dir = Path(__file__).resolve().parent
     data_path = (base_dir / args.data).resolve()
     output_path = (base_dir / args.output).resolve()
-    sample_rows = None if args.sample_rows == 0 else args.sample_rows
 
     print(f"Loading dataset from {data_path}")
-    df = load_dataset(data_path, sample_rows)
-    print(f"Training rows: {len(df):,}")
-    print(f"Delay rate: {df[TARGET_COLUMN].mean():.4f}")
+    df = load_dataset(data_path)
 
-    X = df[FEATURE_COLUMNS]
-    y = df[TARGET_COLUMN]
+    train_df = df[df[DATE_COLUMN] < args.test_start_date]
+    test_df = df[df[DATE_COLUMN] >= args.test_start_date]
+    if train_df.empty or test_df.empty:
+        raise ValueError("Train/test split produced an empty set. Check --test-start-date.")
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42, stratify=y
-    )
+    X_train = train_df[FEATURE_COLUMNS]
+    y_train = train_df[TARGET_COLUMN]
+    X_test = test_df[FEATURE_COLUMNS]
+    y_test = test_df[TARGET_COLUMN]
+
+    print(f"Training rows: {len(train_df):,}")
+    print(f"Testing rows: {len(test_df):,}")
+    print(f"Training delay-heavy rate: {y_train.mean():.4f}")
 
     model = build_model(
         n_estimators=args.n_estimators,
         max_depth=args.max_depth,
         min_samples_leaf=args.min_samples_leaf,
+        n_jobs=args.n_jobs,
     )
 
     print("Training Random Forest...")
