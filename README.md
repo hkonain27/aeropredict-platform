@@ -1,5 +1,6 @@
-# AeroPredict
-Intelligent Flight Delay Prediction Platform
+# ✈️ AeroPredict
+
+### AI-Powered Flight Delay Prediction Platform
 
 A full-stack flight delay prediction system built with Flask, scikit-learn, React, and SQLite. The platform lets users submit flight details, get a real-time delay-risk prediction, compare scenarios, and review saved prediction history in a dashboard.
 
