@@ -11,12 +11,48 @@ USER_AGENT = "AeroPredict/1.0 aviation-intelligence-platform"
 
 _METAR_CACHE = {}
 
+# Most mainland U.S. IATA airport codes map to ICAO by adding "K". Some U.S.
+# territories, Hawaii, Alaska, and Pacific airports use different ICAO prefixes,
+# so keep deterministic overrides for common BTS airports instead of guessing.
+IATA_TO_ICAO_OVERRIDES = {
+    "ANC": "PANC",
+    "ADQ": "PADQ",
+    "BET": "PABE",
+    "BRW": "PABR",
+    "CDV": "PACV",
+    "FAI": "PAFA",
+    "JNU": "PAJN",
+    "KTN": "PAKT",
+    "OME": "PAOM",
+    "SCC": "PASC",
+    "SIT": "PASI",
+    "YAK": "PAYA",
+    "HNL": "PHNL",
+    "ITO": "PHTO",
+    "KOA": "PHKO",
+    "LIH": "PHLI",
+    "OGG": "PHOG",
+    "SJU": "TJSJ",
+    "PSE": "TJPS",
+    "BQN": "TJBQ",
+    "STT": "TIST",
+    "STX": "TISX",
+    "GUM": "PGUM",
+    "SPN": "PGSN",
+    "PPG": "NSTU",
+}
+
+UNAVAILABLE_MESSAGE = "Live weather is not currently available for this airport."
+
 
 def iata_to_icao(airport_code):
     airport_code = str(airport_code).upper().strip()
 
     if len(airport_code) == 4:
         return airport_code
+
+    if airport_code in IATA_TO_ICAO_OVERRIDES:
+        return IATA_TO_ICAO_OVERRIDES[airport_code]
 
     if len(airport_code) == 3:
         return f"K{airport_code}"
@@ -98,7 +134,7 @@ def get_live_metar(airport_code):
                 data = json.loads(body) if body else None
     except HTTPError as exc:
         if exc.code == 204:
-            payload = _weather_unavailable(station, "No recent METAR available.")
+            payload = _weather_unavailable(station, UNAVAILABLE_MESSAGE)
         elif exc.code == 429:
             payload = _weather_unavailable(station, "Weather API rate limit reached.")
         else:
@@ -107,9 +143,9 @@ def get_live_metar(airport_code):
         payload = _weather_unavailable(station, f"Weather API request failed: {exc}")
     else:
         if data is None:
-            payload = _weather_unavailable(station, "No recent METAR available.")
+            payload = _weather_unavailable(station, UNAVAILABLE_MESSAGE)
         elif not data:
-            payload = _weather_unavailable(station, "No weather report returned.")
+            payload = _weather_unavailable(station, UNAVAILABLE_MESSAGE)
         else:
             payload = _normalize_metar(station, data[0])
 

@@ -104,6 +104,8 @@ https://aviationweather.gov/api/data/metar?ids=KCLT&format=json
 
 The app converts three-letter U.S. airport codes like `CLT` to ICAO station IDs like `KCLT`, sets a custom user agent, caches each station for 60 seconds, and gracefully handles missing or unavailable weather data.
 
+Some airports do not use the mainland U.S. `K` prefix. For example, San Juan `SJU` reports METAR under `TJSJ`, so the backend keeps a deterministic override map for common non-mainland airports.
+
 Live METAR weather affects the final displayed risk through the weighted score:
 
 - The model remains the largest influence

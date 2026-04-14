@@ -9,8 +9,6 @@ import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   ResponsiveContainer,
-  LineChart,
-  Line,
   CartesianGrid,
   XAxis,
   YAxis,
@@ -20,8 +18,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  AreaChart,
-  Area,
   Legend,
 } from "recharts";
 import {
@@ -41,16 +37,19 @@ import { motion } from "framer-motion";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
 const MotionDiv = motion.div;
-const pieColors = ["#1d4ed8", "#3b82f6", "#60a5fa", "#93c5fd", "#bfdbfe"];
+const pieColors = ["#0f2a5f", "#1d4ed8", "#38bdf8", "#7dd3fc", "#bae6fd"];
 
 const statusStyles = {
-  "Low Risk": "bg-green-100 text-green-700 border-green-200",
-  "Lower Delay Risk": "bg-green-100 text-green-700 border-green-200",
-  Moderate: "bg-yellow-100 text-yellow-700 border-yellow-200",
-  "Elevated Delay Risk": "bg-yellow-100 text-yellow-700 border-yellow-200",
-  "High Risk": "bg-orange-100 text-orange-700 border-orange-200",
-  "High Delay Risk": "bg-red-100 text-red-700 border-red-200",
-  Critical: "bg-red-100 text-red-700 border-red-200",
+  Low: "bg-white text-blue-950 border-sky-200",
+  "Low Risk": "bg-white text-blue-950 border-sky-200",
+  "Lower Delay Risk": "bg-white text-blue-950 border-sky-200",
+  Medium: "bg-sky-100 text-blue-950 border-sky-300",
+  Moderate: "bg-sky-100 text-blue-950 border-sky-300",
+  "Elevated Delay Risk": "bg-sky-100 text-blue-950 border-sky-300",
+  High: "bg-blue-950 text-white border-blue-950",
+  "High Risk": "bg-blue-950 text-white border-blue-950",
+  "High Delay Risk": "bg-blue-950 text-white border-blue-950",
+  Critical: "bg-blue-950 text-white border-blue-950",
 };
 
 const MONTH_LABELS = {
@@ -81,6 +80,7 @@ const EMPTY_DASHBOARD_DATA = {
   causeBreakdown: [],
   forecastData: [],
   recentFlights: [],
+  suggestionScenarios: [],
 };
 
 const normalizeDashboardData = (payload = {}) => ({
@@ -90,6 +90,7 @@ const normalizeDashboardData = (payload = {}) => ({
   causeBreakdown: Array.isArray(payload.causeBreakdown) ? payload.causeBreakdown : [],
   forecastData: Array.isArray(payload.forecastData) ? payload.forecastData : [],
   recentFlights: Array.isArray(payload.recentFlights) ? payload.recentFlights : [],
+  suggestionScenarios: Array.isArray(payload.suggestionScenarios) ? payload.suggestionScenarios : [],
 });
 
 const formatPercent = (value) => {
@@ -101,6 +102,8 @@ const formatCount = (value) => {
   if (value === null || value === undefined || Number.isNaN(Number(value))) return "n/a";
   return Number(value).toLocaleString();
 };
+
+const monthName = (value) => MONTH_LABELS[Number(value)] || value;
 
 const isWithinDateRange = (createdAt, dateRange) => {
   if (!createdAt) return true;
@@ -142,10 +145,10 @@ const validateField = (field, value) => {
 
 function EmptyPanel({ title, description }) {
   return (
-    <div className="flex h-full min-h-[220px] items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center">
+    <div className="flex h-full min-h-[220px] items-center justify-center rounded-2xl border border-dashed border-sky-200 bg-sky-50 p-6 text-center">
       <div className="max-w-sm">
-        <p className="text-sm font-medium text-slate-700">{title}</p>
-        <p className="mt-2 text-sm text-slate-500">{description}</p>
+        <p className="text-sm font-medium text-blue-950">{title}</p>
+        <p className="mt-2 text-sm text-blue-700">{description}</p>
       </div>
     </div>
   );
@@ -313,18 +316,15 @@ export default function App() {
   }, [data.monthlyDelayData]);
 
   const formExamples = useMemo(() => {
-    const carriers = data.forecastData.map((item) => item.day).filter(Boolean);
-    const airports = data.airportRiskData.map((item) => item.airport).filter(Boolean);
-    const fallbackCarriers = ["AA", "DL", "UA"];
-    const fallbackAirports = ["CLT", "ATL", "ORD"];
-    const months = highestDelayMonths.length > 0 ? highestDelayMonths : ["12", "7", "1"];
+    if (data.suggestionScenarios.length > 0) return data.suggestionScenarios;
 
-    return [0, 1, 2].map((index) => ({
-      carrier: carriers[index] || fallbackCarriers[index],
-      airport: airports[index] || fallbackAirports[index],
-      month: months[index] || months[0],
-    }));
-  }, [data.airportRiskData, data.forecastData, highestDelayMonths]);
+    const months = highestDelayMonths.length > 0 ? highestDelayMonths : ["12", "7", "1"];
+    return [
+      { risk: "Low", label: "Lower historical delay pattern", carrier: "AA", airport: "CLT", month: months[0], delayRate: null },
+      { risk: "Medium", label: "Worth watching", carrier: "WN", airport: "DEN", month: months[1] || months[0], delayRate: null },
+      { risk: "High", label: "Higher historical delay pattern", carrier: "UA", airport: "ORD", month: months[2] || months[0], delayRate: null },
+    ];
+  }, [data.suggestionScenarios, highestDelayMonths]);
 
   const probabilityDelta = predictionResult && comparisonBaseline
     ? (predictionResult.delay_probability - comparisonBaseline.delay_probability) * 100
@@ -352,33 +352,33 @@ export default function App() {
   const finalRiskReasons = predictionResult?.final_risk_reasons || [];
   const displayRiskLabel = predictionResult?.final_risk_label || predictionResult?.prediction_label || currentAnalysis?.risk_label;
   const predictionPanelClass = displayRiskLabel === "High Delay Risk"
-    ? "border-red-200 bg-red-50"
+    ? "border-blue-950 bg-white"
     : displayRiskLabel === "Elevated Delay Risk"
-      ? "border-yellow-200 bg-yellow-50"
-      : "border-green-200 bg-green-50";
+      ? "border-sky-300 bg-sky-50"
+      : "border-sky-200 bg-white";
   const predictionTitleClass = displayRiskLabel === "High Delay Risk"
-    ? "text-red-700"
+    ? "text-blue-950"
     : displayRiskLabel === "Elevated Delay Risk"
-      ? "text-yellow-700"
-      : "text-green-700";
+      ? "text-blue-900"
+      : "text-blue-950";
   const weatherRiskStyles = {
-    High: "bg-red-100 text-red-700 border-red-200",
-    Moderate: "bg-yellow-100 text-yellow-700 border-yellow-200",
-    Low: "bg-green-100 text-green-700 border-green-200",
-    Unknown: "bg-slate-100 text-slate-700 border-slate-200",
+    High: "bg-blue-950 text-white border-blue-950",
+    Moderate: "bg-sky-100 text-blue-950 border-sky-300",
+    Low: "bg-white text-blue-950 border-sky-200",
+    Unknown: "bg-sky-50 text-blue-900 border-sky-200",
   };
   const weatherRiskBadgeClass = weatherRiskStyles[weatherRisk?.level] || weatherRiskStyles.Unknown;
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-50">
-        <RefreshCcw className="h-6 w-6 animate-spin text-slate-500" />
+      <div className="flex h-screen items-center justify-center bg-sky-50">
+        <RefreshCcw className="h-6 w-6 animate-spin text-blue-700" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen bg-sky-50 text-blue-950">
       <div className="mx-auto max-w-7xl p-4 md:p-8">
         <MotionDiv
           initial={{ opacity: 0, y: 18 }}
@@ -391,12 +391,12 @@ export default function App() {
               <Badge className="rounded-full bg-blue-100 px-3 py-1 text-blue-700 hover:bg-blue-100">
                 AeroPredict
               </Badge>
-              <Badge variant="outline" className="rounded-full border-slate-200 bg-white text-slate-600">
+              <Badge variant="outline" className="rounded-full border-sky-200 bg-white text-blue-900">
                 arrival delay risk
               </Badge>
             </div>
             <h1 className="text-3xl font-bold tracking-tight md:text-4xl">AeroPredict</h1>
-            <p className="mt-2 max-w-3xl text-sm text-slate-600 md:text-base">
+            <p className="mt-2 max-w-3xl text-sm text-blue-900 md:text-base">
               Predict flight delay risk, explore saved delay patterns, and compare scenarios in one place.
             </p>
           </div>
@@ -408,9 +408,9 @@ export default function App() {
         </MotionDiv>
 
         {dashboardError && (
-          <Alert className="mb-6 rounded-2xl border-red-200 bg-red-50">
-            <AlertTriangle className="h-4 w-4 text-red-500" />
-            <AlertDescription className="text-red-700">{dashboardError}</AlertDescription>
+          <Alert className="mb-6 rounded-2xl border-sky-300 bg-white">
+            <AlertTriangle className="h-4 w-4 text-blue-950" />
+            <AlertDescription className="text-blue-950">{dashboardError}</AlertDescription>
           </Alert>
         )}
 
@@ -429,13 +429,13 @@ export default function App() {
                   <CardContent className="p-5">
                     <div className="flex items-start justify-between">
                       <div>
-                        <p className="text-sm text-slate-500">{card.title}</p>
+                        <p className="text-sm text-blue-700">{card.title}</p>
                         <h2 className="mt-2 text-3xl font-semibold">{card.value}</h2>
-                        <p className="mt-2 text-sm text-slate-500">
-                          <span className="font-medium text-slate-700">{card.change}</span>
+                        <p className="mt-2 text-sm text-blue-700">
+                          <span className="font-medium text-blue-900">{card.change}</span>
                         </p>
                       </div>
-                      <div className="rounded-2xl bg-slate-100 p-3">
+                      <div className="rounded-2xl bg-sky-100 p-3">
                         <Icon className="h-5 w-5" />
                       </div>
                     </div>
@@ -455,15 +455,16 @@ export default function App() {
             <CardContent className="h-[320px]">
               {data.monthlyDelayData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={data.monthlyDelayData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip formatter={(value) => `${value}%`} />
-                    <Legend />
-                    <Line type="monotone" dataKey="avgDelay" stroke="#0f172a" strokeWidth={3} name="Observed delay rate" />
-                    <Line type="monotone" dataKey="predicted" stroke="#2563eb" strokeWidth={3} name="Dashboard risk reference" />
-                  </LineChart>
+                  <BarChart data={data.monthlyDelayData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#bae6fd" />
+                    <XAxis dataKey="monthLabel" tick={{ fill: "#0f2a5f" }} />
+                    <YAxis tick={{ fill: "#0f2a5f" }} tickFormatter={(value) => `${value}%`} />
+                    <Tooltip
+                      labelFormatter={(label) => `Month: ${label}`}
+                      formatter={(value) => [`${value}%`, "Historical delay rate"]}
+                    />
+                    <Bar dataKey="avgDelay" fill="#1d4ed8" radius={[8, 8, 0, 0]} name="Historical delay rate" />
+                  </BarChart>
                 </ResponsiveContainer>
               ) : (
                 <EmptyPanel
@@ -542,25 +543,25 @@ export default function App() {
                   <CardDescription>Real explanations grounded in the delay-cause dataset</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-5">
-                  <div className="rounded-2xl bg-slate-50 p-4">
+                  <div className="rounded-2xl bg-sky-50 p-4">
                     <div className="mb-2 flex items-center gap-2 text-sm font-medium"><MapPin className="h-4 w-4" /> Highest average risk</div>
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-blue-900">
                       {topAirportRisk
                         ? `${topAirportRisk.airport} currently has the highest average arrival delay risk in the dashboard data at ${topAirportRisk.risk}%.`
                         : "Airport-level risk insights will appear here once dashboard data is loaded."}
                     </p>
                   </div>
-                  <div className="rounded-2xl bg-slate-50 p-4">
+                  <div className="rounded-2xl bg-sky-50 p-4">
                     <div className="mb-2 flex items-center gap-2 text-sm font-medium"><Activity className="h-4 w-4" /> Strongest system-wide cause</div>
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-blue-900">
                       {topCause
                         ? `${prettyCauseName(topCause.name)} is currently the largest contributor to total delay minutes, accounting for about ${topCause.value}% of the overall delay burden.`
                         : "Cause-level insights will appear here when cause totals are available."}
                     </p>
                   </div>
-                  <div className="rounded-2xl bg-slate-50 p-4">
+                  <div className="rounded-2xl bg-sky-50 p-4">
                     <div className="mb-2 flex items-center gap-2 text-sm font-medium"><TrendingUp className="h-4 w-4" /> What this model predicts</div>
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-blue-900">
                       This model predicts whether an airport-airline-month combination is likely to be delay-heavy, using carrier, airport, month, and arriving flight volume.
                     </p>
                   </div>
@@ -582,14 +583,26 @@ export default function App() {
                       <Button
                         key={`${example.carrier}-${example.airport}-${example.month}`}
                         variant="outline"
-                        className="rounded-xl text-xs"
+                        className="h-auto justify-start rounded-xl border-sky-200 bg-white p-3 text-left text-xs text-blue-950 hover:bg-sky-50"
                         onClick={() => {
-                          setForm(example);
+                          setForm({
+                            carrier: example.carrier,
+                            airport: example.airport,
+                            month: String(example.month),
+                          });
                           setFieldErrors({});
                           setPredictionError(null);
                         }}
                       >
-                        {example.carrier} @ {example.airport}
+                        <span className="flex flex-col gap-1">
+                          <span className="font-semibold">{example.risk || "Example"} risk</span>
+                          <span>{example.carrier} @ {example.airport} in {monthName(example.month)}</span>
+                          <span className="text-blue-700">
+                            {example.delayRate !== null && example.delayRate !== undefined
+                              ? `${example.delayRate}% historical delay`
+                              : example.label}
+                          </span>
+                        </span>
                       </Button>
                     ))}
                   </div>
@@ -600,9 +613,9 @@ export default function App() {
                       value={form.carrier}
                       onChange={(e) => handleFormChange("carrier", e.target.value)}
                       onBlur={() => handleBlur("carrier")}
-                      className={`rounded-xl ${fieldErrors.carrier ? "border-red-400" : ""}`}
+                      className={`rounded-xl ${fieldErrors.carrier ? "border-blue-950" : ""}`}
                     />
-                    {fieldErrors.carrier && <p className="mt-1 text-xs text-red-500">{fieldErrors.carrier}</p>}
+                    {fieldErrors.carrier && <p className="mt-1 text-xs text-blue-950">{fieldErrors.carrier}</p>}
                   </div>
 
                   <div>
@@ -611,14 +624,14 @@ export default function App() {
                       value={form.airport}
                       onChange={(e) => handleFormChange("airport", e.target.value)}
                       onBlur={() => handleBlur("airport")}
-                      className={`rounded-xl ${fieldErrors.airport ? "border-red-400" : ""}`}
+                      className={`rounded-xl ${fieldErrors.airport ? "border-blue-950" : ""}`}
                     />
-                    {fieldErrors.airport && <p className="mt-1 text-xs text-red-500">{fieldErrors.airport}</p>}
+                    {fieldErrors.airport && <p className="mt-1 text-xs text-blue-950">{fieldErrors.airport}</p>}
                   </div>
 
                   <div>
                     <Select value={form.month} onValueChange={(value) => handleFormChange("month", value)}>
-                      <SelectTrigger className={`rounded-xl ${fieldErrors.month ? "border-red-400" : ""}`}>
+                      <SelectTrigger className={`rounded-xl ${fieldErrors.month ? "border-blue-950" : ""}`}>
                         <SelectValue placeholder="Select month" />
                       </SelectTrigger>
                       <SelectContent>
@@ -627,7 +640,7 @@ export default function App() {
                         ))}
                       </SelectContent>
                     </Select>
-                    {fieldErrors.month && <p className="mt-1 text-xs text-red-500">{fieldErrors.month}</p>}
+                    {fieldErrors.month && <p className="mt-1 text-xs text-blue-950">{fieldErrors.month}</p>}
                   </div>
 
                   <div className="flex gap-2">
@@ -650,9 +663,9 @@ export default function App() {
                   </div>
 
                   {predictionError && (
-                    <Alert className="rounded-xl border-red-200 bg-red-50">
-                      <AlertTriangle className="h-4 w-4 text-red-500" />
-                      <AlertDescription className="text-red-700">{predictionError}</AlertDescription>
+                    <Alert className="rounded-xl border-sky-300 bg-white">
+                      <AlertTriangle className="h-4 w-4 text-blue-950" />
+                      <AlertDescription className="text-blue-950">{predictionError}</AlertDescription>
                     </Alert>
                   )}
 
@@ -663,8 +676,8 @@ export default function App() {
                           <p className={`text-lg font-semibold ${predictionTitleClass}`}>
                             {displayRiskLabel}
                           </p>
-                          <p className="mt-1 text-sm text-slate-600">
-                            {predictionResult.input.carrier} at {predictionResult.input.airport} in {MONTH_LABELS[predictionResult.input.month]}.
+                          <p className="mt-1 text-sm text-blue-900">
+                            {predictionResult.input.carrier} at {predictionResult.input.airport} in {monthName(predictionResult.input.month)}.
                           </p>
                         </div>
                         <Badge variant="outline" className={`rounded-full border ${statusStyles[displayRiskLabel] || statusStyles.Moderate}`}>
@@ -673,22 +686,47 @@ export default function App() {
                       </div>
 
                       <Progress value={(finalRiskScore ?? predictionResult.delay_probability) * 100} className="mt-3 h-2" />
-                      <p className="mt-2 text-xs text-slate-500">
-                        Final risk is a weighted score anchored by the model and supported by historical records, 2024 flights, and live METAR weather.
+                      <p className="mt-2 text-xs text-blue-700">
+                        This is the user-facing risk score. It blends the model score with historical BTS data, 2024 flight evidence, and current METAR weather when available.
                       </p>
+                      <div className="mt-4 grid grid-cols-1 gap-3 text-sm md:grid-cols-3">
+                        <div className="rounded-xl border border-sky-200 bg-white p-3">
+                          <p className="text-blue-700">Raw model</p>
+                          <p className="mt-1 font-semibold text-blue-950">
+                            {rawModel ? `${(rawModel.delay_probability * 100).toFixed(1)}%` : "n/a"}
+                          </p>
+                          <p className="text-xs text-blue-700">{rawModel?.prediction_label || "No model result"}</p>
+                        </div>
+                        <div className="rounded-xl border border-sky-200 bg-white p-3">
+                          <p className="text-blue-700">2024 evidence</p>
+                          <p className="mt-1 font-semibold text-blue-950">
+                            {flight2024Summary ? formatPercent(flight2024Summary.delay_rate) : "n/a"}
+                          </p>
+                          <p className="text-xs text-blue-700">{flight2024Risk?.level || "Unknown"} supporting signal</p>
+                        </div>
+                        <div className="rounded-xl border border-sky-200 bg-white p-3">
+                          <p className="text-blue-700">Live METAR</p>
+                          <p className="mt-1 font-semibold text-blue-950">
+                            {liveWeather?.available ? (liveWeather.flight_category || "Reported") : "Unavailable"}
+                          </p>
+                          <p className="text-xs text-blue-700">
+                            Current weather only, not the selected month{liveWeather?.station ? ` at ${liveWeather.station}` : ""}
+                          </p>
+                        </div>
+                      </div>
                       {rawModel && (
-                        <p className="mt-2 text-xs text-slate-500">
+                        <p className="mt-2 text-xs text-blue-700">
                           Raw model alone: {rawModel.prediction_label} at {(rawModel.delay_probability * 100).toFixed(1)}%.
                         </p>
                       )}
                       {riskContributionData.length > 0 && (
-                        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+                        <div className="mt-4 rounded-xl border border-sky-200 bg-white p-4">
                           <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
                             <div>
-                              <p className="text-sm font-medium text-slate-800">Weighted Risk Breakdown</p>
-                              <p className="text-xs text-slate-500">Contribution to the final score after data-quality weighting</p>
+                              <p className="text-sm font-medium text-blue-950">Why This Score</p>
+                              <p className="text-xs text-blue-700">How each available source contributed to the final risk shown above</p>
                             </div>
-                            <Badge variant="outline" className="w-fit rounded-full border-slate-200 bg-slate-50 text-slate-700">
+                            <Badge variant="outline" className="w-fit rounded-full border-sky-200 bg-sky-50 text-blue-900">
                               model-led score
                             </Badge>
                           </div>
@@ -708,10 +746,10 @@ export default function App() {
                               </BarChart>
                             </ResponsiveContainer>
                           </div>
-                          <div className="grid grid-cols-1 gap-2 text-xs text-slate-600 md:grid-cols-2">
+                          <div className="grid grid-cols-1 gap-2 text-xs text-blue-900 md:grid-cols-2">
                             {finalRiskComponents.map((component) => (
-                              <div key={component.key} className="rounded-xl bg-slate-50 p-3">
-                                <p className="font-medium text-slate-800">{component.label}: {Math.round(component.score * 1000) / 10}% signal</p>
+                              <div key={component.key} className="rounded-xl bg-sky-50 p-3">
+                                <p className="font-medium text-blue-950">{component.label}: {Math.round(component.score * 1000) / 10}% signal</p>
                                 <p className="mt-1">Effective weight: {component.weight_percent}%</p>
                                 <p className="mt-1">{component.detail}</p>
                               </div>
@@ -720,19 +758,22 @@ export default function App() {
                         </div>
                       )}
                       {finalRiskReasons.length > 0 && (
-                        <ul className="mt-2 space-y-1 text-xs text-slate-600">
+                        <div className="mt-3 rounded-xl border border-sky-200 bg-white p-3">
+                          <p className="text-xs font-medium uppercase tracking-wide text-blue-700">Key takeaway</p>
+                          <ul className="mt-2 space-y-1 text-xs text-blue-900">
                           {finalRiskReasons.map((reason) => (
                             <li key={reason}>{reason}</li>
                           ))}
-                        </ul>
+                          </ul>
+                        </div>
                       )}
 
                       {flight2024Context && (
-                        <div className="mt-4 space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+                        <div className="mt-4 space-y-3 rounded-xl border border-sky-200 bg-white p-4">
                           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                             <div>
-                              <p className="text-sm font-medium text-slate-800">2024 Flight Records</p>
-                              <p className="mt-1 text-sm text-slate-600">
+                              <p className="text-sm font-medium text-blue-950">What 2024 Flights Say</p>
+                              <p className="mt-1 text-sm text-blue-900">
                                 {flight2024Summary?.label || flight2024Context.message || "No matching 2024 context"}
                               </p>
                             </div>
@@ -744,34 +785,34 @@ export default function App() {
                           {flight2024Context.available && flight2024Summary ? (
                             <>
                               <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
-                                <div className="rounded-xl bg-slate-50 p-3">
-                                  <p className="text-slate-500">Flights</p>
-                                  <p className="mt-1 text-lg font-semibold text-slate-900">
+                                <div className="rounded-xl bg-sky-50 p-3">
+                                  <p className="text-blue-700">Flights</p>
+                                  <p className="mt-1 text-lg font-semibold text-blue-950">
                                     {formatCount(flight2024Summary.flights)}
                                   </p>
                                 </div>
-                                <div className="rounded-xl bg-slate-50 p-3">
-                                  <p className="text-slate-500">Delay rate</p>
-                                  <p className="mt-1 text-lg font-semibold text-slate-900">
+                                <div className="rounded-xl bg-sky-50 p-3">
+                                  <p className="text-blue-700">Delay rate</p>
+                                  <p className="mt-1 text-lg font-semibold text-blue-950">
                                     {formatPercent(flight2024Summary.delay_rate)}
                                   </p>
                                 </div>
-                                <div className="rounded-xl bg-slate-50 p-3">
-                                  <p className="text-slate-500">Cancelled</p>
-                                  <p className="mt-1 text-lg font-semibold text-slate-900">
+                                <div className="rounded-xl bg-sky-50 p-3">
+                                  <p className="text-blue-700">Cancelled</p>
+                                  <p className="mt-1 text-lg font-semibold text-blue-950">
                                     {formatPercent(flight2024Summary.cancellation_rate)}
                                   </p>
                                 </div>
-                                <div className="rounded-xl bg-slate-50 p-3">
-                                  <p className="text-slate-500">Avg delay</p>
-                                  <p className="mt-1 text-lg font-semibold text-slate-900">
+                                <div className="rounded-xl bg-sky-50 p-3">
+                                  <p className="text-blue-700">Avg delay</p>
+                                  <p className="mt-1 text-lg font-semibold text-blue-950">
                                     {flight2024Summary.avg_arrival_delay_minutes ?? "n/a"} min
                                   </p>
                                 </div>
                               </div>
 
                               {flight2024Risk?.drivers?.length > 0 && (
-                                <ul className="space-y-1 text-sm text-slate-600">
+                                <ul className="space-y-1 text-sm text-blue-900">
                                   {flight2024Risk.drivers.map((driver) => (
                                     <li key={driver}>{driver}</li>
                                   ))}
@@ -779,20 +820,20 @@ export default function App() {
                               )}
                             </>
                           ) : (
-                            <p className="text-sm text-slate-600">
-                              {flight2024Context.message || "2024 flight-record evidence is unavailable."}
+                            <p className="text-sm text-blue-900">
+                              {flight2024Context.message || "No 2024 flight evidence is available for this airport-airline-month combination."}
                             </p>
                           )}
                         </div>
                       )}
 
                       {(liveWeather || weatherRisk) && (
-                        <div className="mt-4 space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+                        <div className="mt-4 space-y-3 rounded-xl border border-sky-200 bg-white p-4">
                           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                             <div>
-                              <p className="text-sm font-medium text-slate-800">Live METAR Weather</p>
-                              <p className="mt-1 text-sm text-slate-600">
-                                {liveWeather?.station || predictionResult.input.airport}
+                              <p className="text-sm font-medium text-blue-950">Live Weather Now</p>
+                              <p className="mt-1 text-sm text-blue-900">
+                                Current METAR weather from AviationWeather.gov for {liveWeather?.station || predictionResult.input.airport}. This is live weather, not weather for {monthName(predictionResult.input.month)}
                                 {liveWeather?.cached ? " - cached for this minute" : ""}
                               </p>
                             </div>
@@ -804,34 +845,34 @@ export default function App() {
                           {liveWeather?.available ? (
                             <>
                               <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
-                                <div className="rounded-xl bg-slate-50 p-3">
-                                  <p className="text-slate-500">Category</p>
-                                  <p className="mt-1 text-lg font-semibold text-slate-900">
+                                <div className="rounded-xl bg-sky-50 p-3">
+                                  <p className="text-blue-700">Category</p>
+                                  <p className="mt-1 text-lg font-semibold text-blue-950">
                                     {liveWeather.flight_category || "n/a"}
                                   </p>
                                 </div>
-                                <div className="rounded-xl bg-slate-50 p-3">
-                                  <p className="text-slate-500">Visibility</p>
-                                  <p className="mt-1 text-lg font-semibold text-slate-900">
+                                <div className="rounded-xl bg-sky-50 p-3">
+                                  <p className="text-blue-700">Visibility</p>
+                                  <p className="mt-1 text-lg font-semibold text-blue-950">
                                     {liveWeather.visibility_miles ?? "n/a"} mi
                                   </p>
                                 </div>
-                                <div className="rounded-xl bg-slate-50 p-3">
-                                  <p className="text-slate-500">Wind</p>
-                                  <p className="mt-1 text-lg font-semibold text-slate-900">
+                                <div className="rounded-xl bg-sky-50 p-3">
+                                  <p className="text-blue-700">Wind</p>
+                                  <p className="mt-1 text-lg font-semibold text-blue-950">
                                     {liveWeather.wind_speed_kt ?? "n/a"} kt
                                   </p>
                                 </div>
-                                <div className="rounded-xl bg-slate-50 p-3">
-                                  <p className="text-slate-500">Gusts</p>
-                                  <p className="mt-1 text-lg font-semibold text-slate-900">
+                                <div className="rounded-xl bg-sky-50 p-3">
+                                  <p className="text-blue-700">Gusts</p>
+                                  <p className="mt-1 text-lg font-semibold text-blue-950">
                                     {liveWeather.wind_gust_kt ?? "n/a"} kt
                                   </p>
                                 </div>
                               </div>
 
                               {weatherRisk?.drivers?.length > 0 && (
-                                <ul className="space-y-1 text-sm text-slate-600">
+                                <ul className="space-y-1 text-sm text-blue-900">
                                   {weatherRisk.drivers.map((driver) => (
                                     <li key={driver}>{driver}</li>
                                   ))}
@@ -839,25 +880,25 @@ export default function App() {
                               )}
 
                               {liveWeather.raw_text && (
-                                <p className="rounded-xl bg-slate-50 p-3 text-xs text-slate-500">
+                                <p className="rounded-xl bg-sky-50 p-3 text-xs text-blue-700">
                                   {liveWeather.raw_text}
                                 </p>
                               )}
                             </>
                           ) : (
-                            <p className="text-sm text-slate-600">
-                              {liveWeather?.message || weatherRisk?.drivers?.[0] || "Live weather is unavailable."}
+                            <p className="text-sm text-blue-900">
+                              {liveWeather?.message || weatherRisk?.drivers?.[0] || "Live weather is not currently available for this airport."}
                             </p>
                           )}
                         </div>
                       )}
 
                       {currentAnalysis && (
-                        <div className="mt-4 space-y-4 rounded-xl border border-slate-200 bg-white p-4">
+                        <div className="mt-4 space-y-4 rounded-xl border border-sky-200 bg-white p-4">
                           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                             <div>
-                              <p className="text-sm font-medium text-slate-800">Historical BTS match</p>
-                              <p className="mt-1 text-sm text-slate-600">
+                              <p className="text-sm font-medium text-blue-950">What Historical BTS Data Says</p>
+                              <p className="mt-1 text-sm text-blue-900">
                                 {historicalContext?.label || "No matching historical context found"} - {currentAnalysis.historical.reliability} evidence
                               </p>
                             </div>
@@ -867,57 +908,57 @@ export default function App() {
                           </div>
 
                           <div className="grid grid-cols-2 gap-3 text-sm">
-                            <div className="rounded-xl bg-slate-50 p-3">
-                              <p className="text-slate-500">Historical delay rate</p>
-                              <p className="mt-1 text-xl font-semibold text-slate-900">
+                            <div className="rounded-xl bg-sky-50 p-3">
+                              <p className="text-blue-700">Historical delay rate</p>
+                              <p className="mt-1 text-xl font-semibold text-blue-950">
                                 {formatPercent(historicalContext?.delay_rate)}
                               </p>
-                              <p className="text-xs text-slate-500">
+                              <p className="text-xs text-blue-700">
                                 {formatCount(historicalContext?.delayed_arrivals)} delayed of {formatCount(historicalContext?.arrivals)}
                               </p>
                             </div>
-                            <div className="rounded-xl bg-slate-50 p-3">
-                              <p className="text-slate-500">Month baseline</p>
-                              <p className="mt-1 text-xl font-semibold text-slate-900">
+                            <div className="rounded-xl bg-sky-50 p-3">
+                              <p className="text-blue-700">Month baseline</p>
+                              <p className="mt-1 text-xl font-semibold text-blue-950">
                                 {formatPercent(monthBaseline?.delay_rate)}
                               </p>
-                              <p className="text-xs text-slate-500">
-                                {monthBaseline ? `${monthBaseline.records} BTS rows in ${MONTH_LABELS[predictionResult.input.month]}` : "No baseline"}
+                              <p className="text-xs text-blue-700">
+                                {monthBaseline ? `${monthBaseline.records} BTS rows in ${monthName(predictionResult.input.month)}` : "No baseline"}
                               </p>
                             </div>
-                            <div className="rounded-xl bg-slate-50 p-3">
-                              <p className="text-slate-500">Exact matches</p>
-                              <p className="mt-1 text-xl font-semibold text-slate-900">
+                            <div className="rounded-xl bg-sky-50 p-3">
+                              <p className="text-blue-700">Exact matches</p>
+                              <p className="mt-1 text-xl font-semibold text-blue-950">
                                 {currentAnalysis.availability.exact_matches}
                               </p>
-                              <p className="text-xs text-slate-500">
+                              <p className="text-xs text-blue-700">
                                 {exactHistorical?.years?.length ? `${exactHistorical.years[0]}-${exactHistorical.years[exactHistorical.years.length - 1]}` : "Using nearest context"}
                               </p>
                             </div>
-                            <div className="rounded-xl bg-slate-50 p-3">
-                              <p className="text-slate-500">Average delay minutes</p>
-                              <p className="mt-1 text-xl font-semibold text-slate-900">
+                            <div className="rounded-xl bg-sky-50 p-3">
+                              <p className="text-blue-700">Average delay minutes</p>
+                              <p className="mt-1 text-xl font-semibold text-blue-950">
                                 {historicalContext?.avg_delay_minutes_per_delayed_arrival ?? "n/a"}
                               </p>
-                              <p className="text-xs text-slate-500">per delayed arrival</p>
+                              <p className="text-xs text-blue-700">per delayed arrival</p>
                             </div>
                           </div>
 
                           {causeMix.length > 0 && (
                             <div className="space-y-2">
-                              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Main historical delay causes</p>
+                              <p className="text-xs font-medium uppercase tracking-wide text-blue-700">Main historical delay causes</p>
                               {causeMix
                                 .filter((item) => item.share > 0)
                                 .sort((a, b) => b.share - a.share)
                                 .slice(0, 4)
                                 .map((item) => (
                                   <div key={item.name}>
-                                    <div className="mb-1 flex justify-between text-xs text-slate-600">
+                                    <div className="mb-1 flex justify-between text-xs text-blue-900">
                                       <span>{item.name}</span>
                                       <span>{item.share}%</span>
                                     </div>
-                                    <div className="h-1.5 w-full rounded-full bg-slate-200">
-                                      <div className="h-1.5 rounded-full bg-slate-900" style={{ width: `${item.share}%` }} />
+                                    <div className="h-1.5 w-full rounded-full bg-sky-200">
+                                      <div className="h-1.5 rounded-full bg-blue-950" style={{ width: `${item.share}%` }} />
                                     </div>
                                   </div>
                                 ))}
@@ -928,7 +969,7 @@ export default function App() {
                             <div className="overflow-x-auto">
                               <table className="w-full min-w-[520px] border-separate border-spacing-y-2 text-xs">
                                 <thead>
-                                  <tr className="text-left text-slate-500">
+                                  <tr className="text-left text-blue-700">
                                     <th className="px-3">Year</th>
                                     <th className="px-3">Carrier</th>
                                     <th className="px-3">Airport</th>
@@ -938,7 +979,7 @@ export default function App() {
                                 </thead>
                                 <tbody>
                                   {matchedRecords.slice(0, 5).map((record) => (
-                                    <tr key={`${record.year}-${record.carrier}-${record.airport}-${record.month}`} className="bg-slate-50 text-slate-800">
+                                    <tr key={`${record.year}-${record.carrier}-${record.airport}-${record.month}`} className="bg-sky-50 text-blue-950">
                                       <td className="rounded-l-xl px-3 py-2">{record.year}</td>
                                       <td className="px-3 py-2">{record.carrier}</td>
                                       <td className="px-3 py-2">{record.airport}</td>
@@ -955,14 +996,14 @@ export default function App() {
 
                       {predictionResult.feature_importances?.length > 0 && (
                         <div className="mt-4 space-y-2">
-                          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">What influenced this score</p>
+                          <p className="text-xs font-medium uppercase tracking-wide text-blue-700">Raw model details</p>
                           {predictionResult.feature_importances.map((item) => (
                             <div key={item.feature}>
-                              <div className="mb-1 flex justify-between text-xs text-slate-600">
+                              <div className="mb-1 flex justify-between text-xs text-blue-900">
                                 <span>{item.feature.replaceAll("_", " ")}</span>
                                 <span>{item.importance}%</span>
                               </div>
-                              <div className="h-1.5 w-full rounded-full bg-slate-200">
+                              <div className="h-1.5 w-full rounded-full bg-sky-200">
                                 <div className="h-1.5 rounded-full bg-blue-600" style={{ width: `${item.importance}%` }} />
                               </div>
                             </div>
@@ -973,26 +1014,26 @@ export default function App() {
                   )}
 
                   {predictionResult && comparisonBaseline && (
-                    <div className="rounded-xl border border-slate-200 bg-white p-4">
-                      <p className="text-sm font-medium text-slate-800">Scenario Comparison</p>
-                      <p className="mt-1 text-sm text-slate-600">
+                    <div className="rounded-xl border border-sky-200 bg-white p-4">
+                      <p className="text-sm font-medium text-blue-950">Scenario Comparison</p>
+                      <p className="mt-1 text-sm text-blue-900">
                         Compared with your previous prediction, delay risk
-                        <span className={`ml-1 font-medium ${probabilityDelta >= 0 ? "text-red-600" : "text-green-600"}`}>
+                        <span className={`ml-1 font-medium ${probabilityDelta >= 0 ? "text-blue-950" : "text-sky-600"}`}>
                           {probabilityDelta >= 0 ? " increased " : " decreased "}
                           by {Math.abs(probabilityDelta).toFixed(1)} percentage points
                         </span>
                         .
                       </p>
                       <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-                        <div className="rounded-xl bg-slate-50 p-3">
-                          <p className="text-slate-500">Previous</p>
+                        <div className="rounded-xl bg-sky-50 p-3">
+                          <p className="text-blue-700">Previous</p>
                           <p className="mt-1 font-medium">{comparisonBaseline.input.carrier} @ {comparisonBaseline.input.airport}</p>
-                          <p className="text-slate-600">{(comparisonBaseline.delay_probability * 100).toFixed(1)}% risk</p>
+                          <p className="text-blue-900">{(comparisonBaseline.delay_probability * 100).toFixed(1)}% risk</p>
                         </div>
-                        <div className="rounded-xl bg-slate-50 p-3">
-                          <p className="text-slate-500">Current</p>
+                        <div className="rounded-xl bg-sky-50 p-3">
+                          <p className="text-blue-700">Current</p>
                           <p className="mt-1 font-medium">{predictionResult.input.carrier} @ {predictionResult.input.airport}</p>
-                          <p className="text-slate-600">{(predictionResult.delay_probability * 100).toFixed(1)}% risk</p>
+                          <p className="text-blue-900">{(predictionResult.delay_probability * 100).toFixed(1)}% risk</p>
                         </div>
                       </div>
                     </div>
@@ -1008,15 +1049,13 @@ export default function App() {
                 <CardContent className="h-[320px]">
                   {data.forecastData.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={data.forecastData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="day" />
-                        <YAxis />
-                        <Tooltip formatter={(value) => `${value}%`} />
-                        <Legend />
-                        <Area type="monotone" dataKey="actual" stroke="#0f172a" fill="#cbd5e1" name="Observed delay rate" />
-                        <Area type="monotone" dataKey="predicted" stroke="#2563eb" fill="#93c5fd" name="Dashboard risk reference" />
-                      </AreaChart>
+                      <BarChart data={data.forecastData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#bae6fd" />
+                        <XAxis dataKey="day" tick={{ fill: "#0f2a5f" }} />
+                        <YAxis tick={{ fill: "#0f2a5f" }} tickFormatter={(value) => `${value}%`} />
+                        <Tooltip formatter={(value) => [`${value}%`, "Carrier delay rate"]} />
+                        <Bar dataKey="actual" fill="#0f2a5f" radius={[8, 8, 0, 0]} name="Carrier delay rate" />
+                      </BarChart>
                     </ResponsiveContainer>
                   ) : (
                     <EmptyPanel
@@ -1040,7 +1079,7 @@ export default function App() {
                     </div>
                     <div className="grid w-full gap-3 md:grid-cols-2 xl:grid-cols-3 lg:w-auto">
                       <div className="relative min-w-[220px]">
-                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-sky-500" />
                         <Input
                           value={search}
                           onChange={(e) => setSearch(e.target.value)}
@@ -1073,14 +1112,14 @@ export default function App() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="mb-4 flex items-center gap-2 text-sm text-slate-500">
+                  <div className="mb-4 flex items-center gap-2 text-sm text-blue-700">
                     <Filter className="h-4 w-4" /> Showing {filteredFlights.length} saved records
                   </div>
                   {filteredFlights.length > 0 ? (
                     <div className="overflow-x-auto">
                       <table className="w-full min-w-[820px] border-separate border-spacing-y-3">
                         <thead>
-                          <tr className="text-left text-sm text-slate-500">
+                          <tr className="text-left text-sm text-blue-700">
                             <th className="px-4">Record</th>
                             <th className="px-4">Scenario</th>
                             <th className="px-4">Carrier</th>
@@ -1092,7 +1131,7 @@ export default function App() {
                         </thead>
                         <tbody>
                           {filteredFlights.map((flight) => (
-                            <tr key={flight.id} className="bg-slate-50 text-sm text-slate-800">
+                            <tr key={flight.id} className="bg-sky-50 text-sm text-blue-950">
                               <td className="rounded-l-2xl px-4 py-4 font-semibold">{flight.id}</td>
                               <td className="px-4 py-4">{flight.route}</td>
                               <td className="px-4 py-4">{flight.airline}</td>
@@ -1137,7 +1176,7 @@ export default function App() {
                     <div className="overflow-x-auto">
                       <table className="w-full min-w-[720px] border-separate border-spacing-y-2">
                         <thead>
-                          <tr className="text-left text-sm text-slate-500">
+                          <tr className="text-left text-sm text-blue-700">
                             <th className="px-4">Carrier</th>
                             <th className="px-4">Airport</th>
                             <th className="px-4">Month</th>
@@ -1148,7 +1187,7 @@ export default function App() {
                         </thead>
                         <tbody>
                           {history.map((p) => (
-                            <tr key={p.id} className="bg-slate-50 text-sm text-slate-800">
+                            <tr key={p.id} className="bg-sky-50 text-sm text-blue-950">
                               <td className="rounded-l-xl px-4 py-3 font-medium">{p.carrier}</td>
                               <td className="px-4 py-3">{p.airport}</td>
                               <td className="px-4 py-3">{MONTH_LABELS[p.month] || p.month}</td>
@@ -1158,7 +1197,7 @@ export default function App() {
                                 </Badge>
                               </td>
                               <td className="px-4 py-3">{(p.delay_probability * 100).toFixed(1)}%</td>
-                              <td className="rounded-r-xl px-4 py-3 text-slate-400">
+                              <td className="rounded-r-xl px-4 py-3 text-sky-500">
                                 {new Date(`${p.created_at}`).toLocaleString()}
                               </td>
                             </tr>
@@ -1181,3 +1220,4 @@ export default function App() {
     </div>
   );
 }
+

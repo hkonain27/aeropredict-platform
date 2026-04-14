@@ -38,6 +38,11 @@ class LiveWeatherServiceTestCase(unittest.TestCase):
         self.assertEqual(live_weather.iata_to_icao("clt"), "KCLT")
         self.assertEqual(live_weather.iata_to_icao("KJFK"), "KJFK")
 
+    def test_iata_to_icao_uses_non_conus_overrides(self):
+        self.assertEqual(live_weather.iata_to_icao("SJU"), "TJSJ")
+        self.assertEqual(live_weather.iata_to_icao("HNL"), "PHNL")
+        self.assertEqual(live_weather.iata_to_icao("ANC"), "PANC")
+
     def test_score_weather_risk_flags_high_risk_weather(self):
         result = live_weather.score_weather_risk(
             {
@@ -58,13 +63,13 @@ class LiveWeatherServiceTestCase(unittest.TestCase):
         result = live_weather.score_weather_risk(
             {
                 "available": False,
-                "message": "No recent METAR available.",
+                "message": live_weather.UNAVAILABLE_MESSAGE,
             }
         )
 
         self.assertEqual(result["level"], "Unknown")
         self.assertEqual(result["score"], 0)
-        self.assertEqual(result["drivers"], ["No recent METAR available."])
+        self.assertEqual(result["drivers"], [live_weather.UNAVAILABLE_MESSAGE])
 
     def test_get_live_metar_caches_by_station_for_sixty_seconds(self):
         payload = [
@@ -98,7 +103,7 @@ class LiveWeatherServiceTestCase(unittest.TestCase):
 
         self.assertFalse(result["available"])
         self.assertEqual(result["station"], "KCLT")
-        self.assertEqual(result["message"], "No recent METAR available.")
+        self.assertEqual(result["message"], live_weather.UNAVAILABLE_MESSAGE)
 
 
 if __name__ == "__main__":

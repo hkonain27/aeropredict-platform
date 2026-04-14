@@ -1,11 +1,67 @@
 import json
+from functools import lru_cache
 from pathlib import Path
 from flask import Blueprint, jsonify
 from models import Prediction
+from services.delay_data import load_delay_data
 
 dashboard_bp = Blueprint("dashboard", __name__)
 
 DATA_PATH = Path(__file__).resolve().parents[1] / "data" / "delay_dashboard.json"
+
+
+@lru_cache(maxsize=1)
+def _build_suggestion_scenarios():
+    df = load_delay_data()
+    grouped = (
+        df.groupby(["carrier", "airport", "month"], as_index=False)
+        .agg(arrivals=("arr_flights", "sum"), delayed=("arr_del15", "sum"), records=("year", "count"))
+    )
+    # Suggestions use only historical rows with enough arrivals and repeated BTS records
+    # so the low/medium/high examples are stable and not driven by tiny samples.
+    grouped = grouped[(grouped["arrivals"] >= 1000) & (grouped["records"] >= 2)].copy()
+    grouped["delay_rate"] = grouped["delayed"] / grouped["arrivals"]
+
+    scenarios = [
+        (
+            "Low",
+            "Lower historical delay pattern",
+            grouped[grouped["delay_rate"] < 0.16].sort_values("arrivals", ascending=False),
+        ),
+        (
+            "Medium",
+            "Worth watching",
+            grouped[(grouped["delay_rate"] >= 0.20) & (grouped["delay_rate"] < 0.25)]
+            .assign(distance_from_midpoint=lambda frame: (frame["delay_rate"] - 0.225).abs())
+            .sort_values(["distance_from_midpoint", "arrivals"], ascending=[True, False]),
+        ),
+        (
+            "High",
+            "Higher historical delay pattern",
+            grouped[grouped["delay_rate"] >= 0.28].sort_values(["delay_rate", "arrivals"], ascending=[False, False]),
+        ),
+    ]
+
+    suggestions = []
+    for risk, label, frame in scenarios:
+        if frame.empty:
+            continue
+
+        row = frame.iloc[0]
+        suggestions.append(
+            {
+                "risk": risk,
+                "label": label,
+                "carrier": row["carrier"],
+                "airport": row["airport"],
+                "month": str(int(row["month"])),
+                "delayRate": round(float(row["delay_rate"]) * 100, 1),
+                "records": int(row["records"]),
+                "arrivals": int(round(float(row["arrivals"]))),
+            }
+        )
+
+    return suggestions
 
 @dashboard_bp.route("/api/dashboard-data", methods=["GET"])
 def get_dashboard_data():
@@ -50,8 +106,11 @@ def get_dashboard_data():
     monthly_delay_data = [
         {
             "month": str(item["month"]),
+            "monthLabel": [
+                "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+            ][int(item["month"]) - 1],
             "avgDelay": round(item["delay_rate"] * 100, 1),
-            "predicted": round(item["delay_rate"] * 100, 1),
         }
         for item in monthly
     ]
@@ -76,7 +135,6 @@ def get_dashboard_data():
         {
             "day": item["carrier"],
             "actual": round(item["delay_rate"] * 100, 1),
-            "predicted": round(item["delay_rate"] * 100, 1),
         }
         for item in top_carriers[:7]
     ]
@@ -103,4 +161,5 @@ def get_dashboard_data():
         "causeBreakdown": cause_breakdown,
         "forecastData": forecast_data,
         "recentFlights": recent_flights,
+        "suggestionScenarios": _build_suggestion_scenarios(),
     })
