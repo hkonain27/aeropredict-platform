@@ -1,6 +1,8 @@
 # AeroPredict
 
-AeroPredict is an aviation intelligence platform for predicting flight delay risk and exploring saved delay patterns. Built with Flask, scikit-learn, React, and SQLite, it lets users submit flight details, generate a real-time prediction, compare scenarios, and review historical prediction activity in a dashboard.
+### AI-Powered Flight Delay Prediction Platform
+
+AeroPredict is a full-stack flight delay prediction system built with Flask, scikit-learn, React, and SQLite. The platform lets users submit flight details, get a real-time delay-risk prediction, compare scenarios, and review saved prediction history in a dashboard.
 
 ## What The App Does
 
@@ -26,7 +28,7 @@ aviation-intelligence-platform/
 ## Dataset
 
 - Source file used locally: `data/raw/flight_data_2024.csv`
-- Raw-data note: `data/raw/*.csv` is gitignored, so you should place the 2024 source CSV there locally before running preprocessing
+- Raw-data note: `data/raw/*.csv` is gitignored, so you should place the source CSV there locally before running preprocessing
 - Processed file in repo: `data/processed/flights_processed.csv`
 
 ## Model
@@ -34,17 +36,12 @@ aviation-intelligence-platform/
 - Algorithm: Random Forest Classifier inside a scikit-learn pipeline
 - Saved artifact: `data/processed/model.pkl`
 - Current input features:
-  - `airline`
-  - `origin`
-  - `destination`
-  - `dep_hour`
-  - `day_of_week`
-  - `distance`
+  - `carrier`
+  - `airport`
+  - `month`
+  - `arr_flights`
 - Target:
-  - `delayed` = whether `dep_delay >= 15`
-- Current local training flow:
-  - `backend/scripts/train_model.py` trains a Random Forest from `data/processed/flights_processed.csv`
-  - the script defaults to a stratified sample so retraining stays practical on a local machine
+  - whether a scenario is likely to be delay-heavy
 
 ## Backend
 
@@ -55,12 +52,14 @@ The Flask backend lives in `backend/` and exposes:
 - `POST /predict`
   - validates input
   - loads the trained model
-  - returns a prediction, probability, and grouped feature importance
+  - returns a prediction, probability, and analysis context
   - saves the result to SQLite
 - `GET /predictions`
   - returns the latest saved predictions
 - `GET /api/dashboard-data`
   - returns dashboard aggregates computed from saved prediction history
+- `POST /api/delay-risk`
+  - returns a model and historical risk lookup without saving a record
 
 Database:
 
@@ -119,44 +118,6 @@ npm run dev
 
 Frontend runs at `http://localhost:5173`
 
-## Example Prediction Request
-
-```json
-{
-  "airline": "UA",
-  "origin": "JFK",
-  "destination": "LAX",
-  "dep_hour": 17,
-  "day_of_week": 5,
-  "distance": 2475
-}
-```
-
-## Example Prediction Response
-
-```json
-{
-  "status": "success",
-  "input": {
-    "airline": "UA",
-    "origin": "JFK",
-    "destination": "LAX",
-    "dep_hour": 17,
-    "day_of_week": 5,
-    "distance": 2475
-  },
-  "prediction": 0,
-  "prediction_label": "On Time Likely",
-  "delay_probability": 0.2131,
-  "feature_importances": [
-    {
-      "feature": "distance",
-      "importance": 24.0
-    }
-  ]
-}
-```
-
 ## Testing
 
 Backend route tests are located in `backend/tests/test_api.py`.
@@ -167,26 +128,11 @@ Run them with:
 python -m unittest discover -s backend/tests
 ```
 
-## Reproducing The Model
-
-1. Run `data/preprocessing.ipynb`
-2. Generate `data/processed/flights_processed.csv`
-3. Run `backend/scripts/train_model.py`
-4. Generate `data/processed/model.pkl`
-
-Example:
-
-```bash
-cd backend
-../.venv/bin/python scripts/train_model.py --sample-rows 50000
-```
-
 ## Current Scope Notes
 
-- The live app is driven by flight features listed above
-- The dashboard currently summarizes saved app predictions, not the full raw historical dataset directly
-- Weather-specific features are not part of the current deployed prediction pipeline
-- Weather integration can be framed as a future enhancement unless the team decides to expand scope
+- The live app is driven by the current delay-risk features listed above
+- The dashboard summarizes saved app predictions rather than raw dataset rows directly
+- The prediction workflow focuses on model risk and historical comparison
 
 ## Team Alignment
 
