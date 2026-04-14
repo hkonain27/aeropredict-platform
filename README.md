@@ -1,82 +1,126 @@
 # Aviation Intelligence Platform
 
-A full-stack flight delay prediction system built with Flask, scikit-learn, React, and SQLite.
+A full-stack flight delay prediction system built with Flask, scikit-learn, React, and SQLite. The platform lets users submit flight details, get a real-time delay-risk prediction, compare scenarios, and review saved prediction history in a dashboard.
+
+## What The App Does
+
+- Predicts whether a flight is likely to be delayed by 15+ minutes
+- Returns a delay probability and a simple model-factor view
+- Saves predictions to SQLite for history and dashboard analytics
+- Shows dashboard summaries based on saved prediction activity
+- Supports lightweight what-if analysis by comparing the current prediction with the previous one
 
 ## Project Structure
 
-```
+```text
 aviation-intelligence-platform/
-├── backend/          # Flask API + ML model serving
-├── frontend/         # React dashboard
+├── backend/          # Flask API, model serving, SQLite persistence
+├── frontend/         # React dashboard and prediction UI
 └── data/
-    ├── raw/          # Original CSV dataset
-    ├── processed/    # Cleaned dataset + trained model
-    ├── preprocessing.ipynb   # Data cleaning pipeline
-    └── train_model.ipynb     # Model training pipeline
+    ├── raw/          # Kaggle source dataset
+    ├── processed/    # Cleaned dataset + trained model artifact
+    ├── preprocessing.ipynb
+    └── train_model.ipynb
 ```
+
+## Dataset
+
+- Source: [Flight Delay Dataset 2018-2024 on Kaggle](https://www.kaggle.com/datasets/shubhamsingh42/flight-delay-dataset-2018-2024?select=flight_data_2018_2024.csv)
+- Raw file in repo: `data/raw/flight_data_2018_2024.csv`
+- Processed file in repo: `data/processed/flights_processed.csv`
 
 ## Model
 
-- Algorithm: Random Forest Classifier (scikit-learn Pipeline)
-- Features: `airline`, `origin`, `destination`, `dep_hour`, `day_of_week`, `distance`
-- Target: `DepDel15` — whether a flight is delayed 15+ minutes (1 = delayed, 0 = on time)
-- ROC AUC: 0.66 | Accuracy: 0.59
-- Dataset: January 2024 US domestic flights (~560k rows)
+- Algorithm: Random Forest Classifier inside a scikit-learn pipeline
+- Saved artifact: `data/processed/model.pkl`
+- Current input features:
+  - `airline`
+  - `origin`
+  - `destination`
+  - `dep_hour`
+  - `day_of_week`
+  - `distance`
+- Target:
+  - `DepDel15` = whether departure delay is 15+ minutes
+- Current reported metrics:
+  - ROC AUC: `0.66`
+  - Accuracy: `0.59`
+
+## Backend
+
+The Flask backend lives in `backend/` and exposes:
+
+- `GET /health`
+  - health check endpoint
+- `POST /predict`
+  - validates input
+  - loads the trained model
+  - returns a prediction, probability, and grouped feature importance
+  - saves the result to SQLite
+- `GET /predictions`
+  - returns the latest saved predictions
+- `GET /api/dashboard-data`
+  - returns dashboard aggregates computed from saved prediction history
+
+Database:
+
+- SQLite file: `backend/predictions.db`
+- ORM: Flask-SQLAlchemy
+
+## Frontend
+
+The React frontend lives in `frontend/` and includes:
+
+- Overview dashboard cards and charts
+- Real-time prediction form
+- Prediction history table
+- Saved-records table with filtering
+- Scenario comparison between the latest and previous prediction
 
 ## Setup
 
 ### Prerequisites
+
 - Python 3.13+
 - Node.js 18+
 
-### 1. Clone the repo
-```bash
-git clone https://github.com/hkonain27/aviation-intelligence-platform.git
-cd aviation-intelligence-platform
-```
+### Backend setup
 
-### 2. Create and activate virtual environment
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-```
-
-### 3. Install backend dependencies
-```bash
 pip install -r backend/requirements.txt
 ```
 
-### 4. Install frontend dependencies
+### Frontend setup
+
 ```bash
-cd frontend && npm install
+cd frontend
+npm install
 ```
 
-## Running the App
+## Running The App
 
 ### Start the backend
+
 ```bash
 cd backend
 python app.py
 ```
+
 Backend runs at `http://localhost:5001`
 
 ### Start the frontend
+
 ```bash
 cd frontend
 npm run dev
 ```
+
 Frontend runs at `http://localhost:5173`
 
-## API Endpoints
+## Example Prediction Request
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/health` | Health check |
-| POST | `/predict` | Run a delay prediction |
-| GET | `/predictions` | Get last 50 predictions |
-| GET | `/api/dashboard-data` | Get dashboard chart data |
-
-### POST `/predict` — Example request
 ```json
 {
   "airline": "UA",
@@ -88,17 +132,61 @@ Frontend runs at `http://localhost:5173`
 }
 ```
 
-### POST `/predict` — Example response
+## Example Prediction Response
+
 ```json
 {
   "status": "success",
+  "input": {
+    "airline": "UA",
+    "origin": "JFK",
+    "destination": "LAX",
+    "dep_hour": 17,
+    "day_of_week": 5,
+    "distance": 2475
+  },
   "prediction": 0,
   "prediction_label": "On Time Likely",
-  "delay_probability": 0.2131
+  "delay_probability": 0.2131,
+  "feature_importances": [
+    {
+      "feature": "distance",
+      "importance": 24.0
+    }
+  ]
 }
 ```
 
-## Reproducing the Model
+## Testing
 
-1. Run `data/preprocessing.ipynb` — generates `data/processed/flights_processed.csv`
-2. Run `data/train_model.ipynb` — generates `data/processed/model.pkl`
+Backend route tests are located in `backend/tests/test_api.py`.
+
+Run them with:
+
+```bash
+python -m unittest discover -s backend/tests
+```
+
+## Reproducing The Model
+
+1. Run `data/preprocessing.ipynb`
+2. Generate `data/processed/flights_processed.csv`
+3. Run `data/train_model.ipynb`
+4. Generate `data/processed/model.pkl`
+
+## Current Scope Notes
+
+- The live app is driven by flight features listed above
+- The dashboard currently summarizes saved app predictions, not the full raw historical dataset directly
+- Weather-specific features are not part of the current deployed prediction pipeline
+- Weather integration can be framed as a future enhancement unless the team decides to expand scope
+
+## Team Alignment
+
+Suggested ownership based on the current implementation:
+
+- Backend and API: Elijah
+- Data science and prediction logic: Yennah
+- Frontend and UX: Aleena
+- Deployment: Maimouna
+- Documentation and testing: Hafsa

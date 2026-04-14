@@ -6,14 +6,21 @@ from routes.health import health_bp
 from routes.predict import predict_bp
 from routes.predictions_history import predictions_history_bp
 from routes.dashboard import dashboard_bp
+from routes.analysis import analysis_bp
 
-def create_app():
+
+def create_app(test_config=None):
     app = Flask(__name__)
     CORS(app)
 
     basedir = os.path.abspath(os.path.dirname(__file__))
-    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(basedir, "predictions.db")
-    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    app.config.from_mapping(
+        SQLALCHEMY_DATABASE_URI="sqlite:///" + os.path.join(basedir, "predictions.db"),
+        SQLALCHEMY_TRACK_MODIFICATIONS=False,
+    )
+
+    if test_config:
+        app.config.update(test_config)
 
     db.init_app(app)
 
@@ -21,6 +28,7 @@ def create_app():
     app.register_blueprint(predict_bp)
     app.register_blueprint(predictions_history_bp)
     app.register_blueprint(dashboard_bp)
+    app.register_blueprint(analysis_bp)
 
     with app.app_context():
         db.create_all()

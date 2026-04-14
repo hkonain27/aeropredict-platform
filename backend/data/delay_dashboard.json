@@ -1,0 +1,196 @@
+{
+  "summary": {
+    "records": 113517,
+    "avg_delay_rate": 0.2001,
+    "years": [
+      2021,
+      2022,
+      2023,
+      2024,
+      2025
+    ],
+    "airports": 387,
+    "carriers": 22
+  },
+  "monthly_delay_rate": [
+    {
+      "month": 1,
+      "delay_rate": 0.1961
+    },
+    {
+      "month": 2,
+      "delay_rate": 0.1827
+    },
+    {
+      "month": 3,
+      "delay_rate": 0.1877
+    },
+    {
+      "month": 4,
+      "delay_rate": 0.1853
+    },
+    {
+      "month": 5,
+      "delay_rate": 0.1984
+    },
+    {
+      "month": 6,
+      "delay_rate": 0.2492
+    },
+    {
+      "month": 7,
+      "delay_rate": 0.2648
+    },
+    {
+      "month": 8,
+      "delay_rate": 0.2217
+    },
+    {
+      "month": 9,
+      "delay_rate": 0.1593
+    },
+    {
+      "month": 10,
+      "delay_rate": 0.1623
+    },
+    {
+      "month": 11,
+      "delay_rate": 0.167
+    },
+    {
+      "month": 12,
+      "delay_rate": 0.2245
+    }
+  ],
+  "top_airports": [
+    {
+      "airport": "SJU",
+      "airport_name": "San Juan, PR: Luis Munoz Marin International",
+      "delay_rate": 0.2519,
+      "arr_flights": 163080.0
+    },
+    {
+      "airport": "SFO",
+      "airport_name": "San Francisco, CA: San Francisco International",
+      "delay_rate": 0.2445,
+      "arr_flights": 652329.0
+    },
+    {
+      "airport": "FLL",
+      "airport_name": "Fort Lauderdale, FL: Fort Lauderdale-Hollywood International",
+      "delay_rate": 0.2435,
+      "arr_flights": 441065.0
+    },
+    {
+      "airport": "MIA",
+      "airport_name": "Miami, FL: Miami International",
+      "delay_rate": 0.2394,
+      "arr_flights": 523278.0
+    },
+    {
+      "airport": "MCO",
+      "airport_name": "Orlando, FL: Orlando International",
+      "delay_rate": 0.2391,
+      "arr_flights": 763375.0
+    },
+    {
+      "airport": "LAS",
+      "airport_name": "Las Vegas, NV: Harry Reid International",
+      "delay_rate": 0.2381,
+      "arr_flights": 629990.0
+    },
+    {
+      "airport": "PBI",
+      "airport_name": "West Palm Beach/Palm Beach, FL: Palm Beach International",
+      "delay_rate": 0.2348,
+      "arr_flights": 134471.0
+    },
+    {
+      "airport": "DFW",
+      "airport_name": "Dallas/Fort Worth, TX: Dallas/Fort Worth International",
+      "delay_rate": 0.2326,
+      "arr_flights": 1479619.0
+    },
+    {
+      "airport": "EWR",
+      "airport_name": "Newark, NJ: Newark Liberty International",
+      "delay_rate": 0.2289,
+      "arr_flights": 676421.0
+    },
+    {
+      "airport": "SRQ",
+      "airport_name": "Sarasota/Bradenton, FL: Sarasota/Bradenton International",
+      "delay_rate": 0.227,
+      "arr_flights": 80888.0
+    }
+  ],
+  "top_carriers": [
+    {
+      "carrier": "B6",
+      "carrier_name": "JetBlue Airways",
+      "delay_rate": 0.2741,
+      "arr_flights": 1222307.0
+    },
+    {
+      "carrier": "AA",
+      "carrier_name": "American Airlines Network",
+      "delay_rate": 0.2538,
+      "arr_flights": 4509032.0
+    },
+    {
+      "carrier": "F9",
+      "carrier_name": "Frontier Airlines",
+      "delay_rate": 0.2435,
+      "arr_flights": 876855.0
+    },
+    {
+      "carrier": "HA",
+      "carrier_name": "Hawaiian Airlines Network",
+      "delay_rate": 0.2316,
+      "arr_flights": 373988.0
+    },
+    {
+      "carrier": "G4",
+      "carrier_name": "Allegiant Air",
+      "delay_rate": 0.2292,
+      "arr_flights": 596406.0
+    },
+    {
+      "carrier": "WN",
+      "carrier_name": "Southwest Airlines",
+      "delay_rate": 0.2266,
+      "arr_flights": 6621558.0
+    },
+    {
+      "carrier": "NK",
+      "carrier_name": "Spirit Airlines",
+      "delay_rate": 0.224,
+      "arr_flights": 1143250.0
+    },
+    {
+      "carrier": "C5",
+      "carrier_name": "Commutair Aka Champlain Enterprises, Inc.",
+      "delay_rate": 0.222,
+      "arr_flights": 141525.0
+    },
+    {
+      "carrier": "UA",
+      "carrier_name": "United Air Lines Network",
+      "delay_rate": 0.219,
+      "arr_flights": 3361244.0
+    },
+    {
+      "carrier": "G7",
+      "carrier_name": "GoJet Airlines LLC d/b/a United Express",
+      "delay_rate": 0.211,
+      "arr_flights": 288666.0
+    }
+  ],
+  "cause_totals": {
+    "carrier": 181105530.0,
+    "weather": 30676813.0,
+    "nas": 94151221.0,
+    "security": 975498.0,
+    "late_aircraft": 198487931.0
+  }
+}

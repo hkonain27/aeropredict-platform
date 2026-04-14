@@ -4,7 +4,8 @@ __pycache__/
 *.pyc
 .env
 .DS_Store
-data/raw/*.csv
-*.pkl
-data/processed/
+Thumbs.db
+
+data/raw/
+
 backend/predictions.db
