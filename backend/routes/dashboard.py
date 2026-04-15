@@ -133,7 +133,9 @@ def get_dashboard_data():
 
     forecast_data = [
         {
-            "day": item["carrier"],
+            "day": item.get("carrier_name") or item["carrier"],
+            "carrier": item["carrier"],
+            "carrierName": item.get("carrier_name") or item["carrier"],
             "actual": round(item["delay_rate"] * 100, 1),
         }
         for item in top_carriers[:7]

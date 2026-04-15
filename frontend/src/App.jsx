@@ -1043,17 +1043,29 @@ export default function App() {
 
               <Card className="rounded-2xl border-none shadow-sm xl:col-span-5">
                 <CardHeader>
-                  <CardTitle>Carrier Risk Comparison</CardTitle>
-                  <CardDescription>Top carrier-level delay rates from the dashboard dataset</CardDescription>
+                  <CardTitle>Airline Risk Comparison</CardTitle>
+                  <CardDescription>Highest airline-level delay rates from the dashboard dataset</CardDescription>
                 </CardHeader>
                 <CardContent className="h-[320px]">
                   {data.forecastData.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={data.forecastData}>
+                      <BarChart data={data.forecastData} layout="vertical" margin={{ left: 28, right: 24 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#bae6fd" />
-                        <XAxis dataKey="day" tick={{ fill: "#0f2a5f" }} />
-                        <YAxis tick={{ fill: "#0f2a5f" }} tickFormatter={(value) => `${value}%`} />
-                        <Tooltip formatter={(value) => [`${value}%`, "Carrier delay rate"]} />
+                        <XAxis type="number" tick={{ fill: "#0f2a5f" }} tickFormatter={(value) => `${value}%`} />
+                        <YAxis
+                          type="category"
+                          dataKey="carrierName"
+                          width={150}
+                          interval={0}
+                          tick={{ fill: "#0f2a5f", fontSize: 12 }}
+                        />
+                        <Tooltip
+                          formatter={(value) => [`${value}%`, "Airline delay rate"]}
+                          labelFormatter={(label, items) => {
+                            const carrier = items?.[0]?.payload?.carrier;
+                            return carrier ? `${label} (${carrier})` : label;
+                          }}
+                        />
                         <Bar dataKey="actual" fill="#0f2a5f" radius={[8, 8, 0, 0]} name="Carrier delay rate" />
                       </BarChart>
                     </ResponsiveContainer>
