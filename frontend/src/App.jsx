@@ -260,6 +260,13 @@ export default function App() {
   const [dateRange, setDateRange] = useState("all");
   const [search, setSearch] = useState("");
 
+  const [authToken, setAuthToken] = useState(localStorage.getItem("aero_auth_token") || "");
+  const [authMode, setAuthMode] = useState("login");
+  const [authForm, setAuthForm] = useState({ email: "", name: "", password: "" });
+  const [authError, setAuthError] = useState(null);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [userProfile, setUserProfile] = useState(null);
+
   const [form, setForm] = useState(EMPTY_FORM);
   const [fieldErrors, setFieldErrors] = useState({});
   const [predicting, setPredicting] = useState(false);
@@ -284,20 +291,142 @@ export default function App() {
   };
 
   const fetchHistory = async () => {
+    if (!authToken) {
+      setHistory([]);
+      return;
+    }
+
     try {
-      const res = await fetch(`${API_BASE}/predictions`);
-      if (!res.ok) throw new Error("Failed to load prediction history");
-      const json = await res.json();
-      if (json.status === "success" && Array.isArray(json.predictions)) setHistory(json.predictions);
-    } catch (err) {
-      console.error("Error fetching history:", err);
+      const response = await fetch(`${API_BASE}/api/predictions-history`, {
+        headers: authHeaders(),
+      });
+
+      if (response.status === 401) {
+        clearAuth();
+        return;
+      }
+
+      if (!response.ok) throw new Error("Failed to load prediction history");
+
+      const json = await response.json();
+      if (json.status === "success" && Array.isArray(json.history)) {
+        setHistory(json.history);
+      } else {
+        setHistory([]);
+      }
+    } catch (error) {
+      console.error(error);
+      setHistory([]);
     }
   };
 
-  useEffect(() => {
+  const authHeaders = () => {
+    return authToken ? { Authorization: `Bearer ${authToken}` } : {};
+  };
+
+  const saveAuthToken = (token) => {
+    localStorage.setItem("aero_auth_token", token);
+    setAuthToken(token);
+  };
+
+  const clearAuth = () => {
+    localStorage.removeItem("aero_auth_token");
+    setAuthToken("");
+    setUserProfile(null);
+  };
+
+  const loadProfile = async () => {
+    if (!authToken) return;
+    try {
+      const response = await fetch(`${API_BASE}/api/profile`, {
+        headers: authHeaders(),
+      });
+      if (response.status === 401) {
+        clearAuth();
+        return;
+      }
+      if (!response.ok) throw new Error("Could not load profile");
+      const json = await response.json();
+      if (json.status === "success") {
+        setUserProfile(json.profile);
+      } else {
+        throw new Error(json.message || "Profile load failed");
+      }
+    } catch (err) {
+      console.error(err);
+      clearAuth();
+    }
+  };
+
+  const handleAuthSubmit = async () => {
+    setAuthError(null);
+    setAuthLoading(true);
+
+    if (!authForm.email || !authForm.password || (authMode === "register" && !authForm.name)) {
+      setAuthError("Please fill all required fields.");
+      setAuthLoading(false);
+      return;
+    }
+
+    const endpoint = authMode === "login" ? "/api/login" : "/api/register";
+    const payload = {
+      email: authForm.email.trim(),
+      password: authForm.password,
+    };
+    if (authMode === "register") payload.name = authForm.name.trim();
+
+    try {
+      console.log("Auth submit", { mode: authMode, endpoint: `${API_BASE}${endpoint}`, payload });
+      const response = await fetch(`${API_BASE}${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = await response.json();
+      console.log("Auth response", response.status, json);
+      if (!response.ok || json.status === "error") {
+        setAuthError(json.message || "Authentication failed.");
+      } else {
+        saveAuthToken(json.token);
+        setUserProfile(json.profile || null);
+        setAuthForm({ email: "", name: "", password: "" });
+        setAuthError(null);
+      }
+    } catch (err) {
+      console.error(err);
+      setAuthError("Could not connect to the authentication service.");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch(`${API_BASE}/api/logout`, {
+        method: "POST",
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
+      });
+    } catch (err) {
+      console.error(err);
+    }
+    clearAuth();
+  };
+
+  const loadAppData = () => {
+    setLoading(true);
     fetchDashboardData();
     fetchHistory();
-  }, []);
+  };
+
+  useEffect(() => {
+    if (authToken) {
+      loadProfile();
+      loadAppData();
+    } else {
+      setLoading(false);
+      setHistory([]);
+    }
+  }, [authToken]);
 
   const handleFormChange = (field, value) => {
     const nextValue = ["carrier", "airport"].includes(field) ? value.toUpperCase() : value;
@@ -461,6 +590,78 @@ export default function App() {
       }`
     : null;
 
+  const renderAuthPage = () => (
+    <div className="flex min-h-screen items-center justify-center bg-sky-50 px-4 py-12">
+      <div className="w-full max-w-md space-y-6 rounded-3xl border border-sky-200 bg-white p-8 shadow-sm">
+        <div className="space-y-2 text-center">
+          <h1 className="text-3xl font-bold text-blue-950">AeroPredict Login</h1>
+          <p className="text-sm text-blue-700">Create an account or sign in to save your profile and see personalized data.</p>
+        </div>
+
+        {authError && (
+          <Alert className="rounded-2xl border-red-200 bg-red-50 text-red-900">
+            <AlertDescription>{authError}</AlertDescription>
+          </Alert>
+        )}
+
+        <div className="space-y-4">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-blue-900">Email</label>
+            <Input
+              type="email"
+              value={authForm.email}
+              onChange={(event) => setAuthForm((prev) => ({ ...prev, email: event.target.value }))}
+              placeholder="you@example.com"
+            />
+          </div>
+          {authMode === "register" && (
+            <div>
+              <label className="mb-2 block text-sm font-medium text-blue-900">Name</label>
+              <Input
+                type="text"
+                value={authForm.name}
+                onChange={(event) => setAuthForm((prev) => ({ ...prev, name: event.target.value }))}
+                placeholder="Your name"
+              />
+            </div>
+          )}
+          <div>
+            <label className="mb-2 block text-sm font-medium text-blue-900">Password</label>
+            <Input
+              type="password"
+              value={authForm.password}
+              onChange={(event) => setAuthForm((prev) => ({ ...prev, password: event.target.value }))}
+              placeholder="Enter a password"
+            />
+          </div>
+          <Button className="w-full rounded-2xl" onClick={handleAuthSubmit} disabled={authLoading}>
+            {authLoading ? "Working..." : authMode === "login" ? "Sign In" : "Create Account"}
+          </Button>
+        </div>
+
+        <div className="pt-4 text-center text-sm text-blue-700">
+          {authMode === "login" ? (
+            <span>
+              New here? <button className="font-semibold text-blue-950 hover:underline" onClick={() => { setAuthMode("register"); setAuthError(null); }}>
+                Create an account
+              </button>
+            </span>
+          ) : (
+            <span>
+              Already have an account? <button className="font-semibold text-blue-950 hover:underline" onClick={() => { setAuthMode("login"); setAuthError(null); }}>
+                Sign in
+              </button>
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  if (!authToken) {
+    return renderAuthPage();
+  }
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-sky-50">
@@ -493,8 +694,16 @@ export default function App() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
+            {userProfile && (
+              <div className="rounded-2xl border border-sky-200 bg-white px-4 py-2 text-sm text-blue-950">
+                Signed in as <span className="font-semibold">{userProfile.name}</span>
+              </div>
+            )}
             <Button variant="outline" className="rounded-2xl" onClick={() => { setLoading(true); fetchDashboardData(); fetchHistory(); }}>
               <RefreshCcw className="mr-2 h-4 w-4" /> Refresh
+            </Button>
+            <Button variant="ghost" className="rounded-2xl text-blue-950" onClick={handleLogout}>
+              Logout
             </Button>
           </div>
         </MotionDiv>
@@ -1292,4 +1501,3 @@ export default function App() {
     </div>
   );
 }
-

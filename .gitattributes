@@ -1,3 +1,5 @@
 data/processed/flights_processed.csv filter=lfs diff=lfs merge=lfs -text
 data/raw/flight_data_2024.csv filter=lfs diff=lfs merge=lfs -text
 data/raw/airline_delay_cause.csv filter=lfs diff=lfs merge=lfs -text
+data/processed/model.pkl filter=lfs diff=lfs merge=lfs -text
+data/raw/flight_data_2018_2024.csv filter=lfs diff=lfs merge=lfs -text

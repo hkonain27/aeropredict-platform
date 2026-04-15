@@ -11,3 +11,4 @@ Thumbs.db
 
 backend/predictions.db
 frontend/dist/
+frontend/.vite/
