@@ -3,6 +3,7 @@ from services.predictor import make_prediction
 from services.delay_analysis import analyze_delay_risk
 from services.delay_data import estimate_arrivals, validate_known_carrier_airport
 from services.flight_2024_context import get_flight_2024_context, score_flight_2024_context
+from services.historical_weather import get_historical_weather_context, score_historical_weather_context
 from services.live_weather import get_live_metar, score_weather_risk
 from extensions import db
 from models import Prediction
@@ -14,7 +15,7 @@ BASE_WEIGHTS = {
     "model": 0.47,
     "historical": 0.25,
     "flight_2024": 0.18,
-    "weather": 0.10,
+    "historical_weather": 0.10,
 }
 
 
@@ -30,14 +31,6 @@ def _score_delay_rate(delay_rate):
     if delay_rate >= 0.15:
         return 0.35
     return 0.25
-
-
-def _score_level(level):
-    return {
-        "High": 0.9,
-        "Moderate": 0.55,
-        "Low": 0.25,
-    }.get(level)
 
 
 def _score_2024_summary(summary):
@@ -104,12 +97,11 @@ def _risk_label_from_score(score):
     return "Lower Delay Risk"
 
 
-def _combine_final_risk(delay_probability, analysis, flight_2024_context, flight_2024_risk, weather_risk):
+def _combine_final_risk(delay_probability, analysis, flight_2024_context, flight_2024_risk, historical_weather_risk):
     historical_context = analysis.get("historical", {}).get("context_used")
     historical_rate = historical_context.get("delay_rate") if historical_context else None
     historical_reliability = analysis.get("historical", {}).get("reliability")
     flight_2024_summary = flight_2024_context.get("summary") if flight_2024_context.get("available") else None
-    weather_level = weather_risk.get("level")
 
     components = [
         _component(
@@ -137,12 +129,12 @@ def _combine_final_risk(delay_probability, analysis, flight_2024_context, flight
             "Individual 2024 flight records provide recent supporting evidence.",
         ),
         _component(
-            "weather",
-            "Live METAR",
-            _score_level(weather_level),
-            BASE_WEIGHTS["weather"],
-            1.0 if weather_level in ["High", "Moderate", "Low"] else 0,
-            "Current airport weather from AviationWeather.gov.",
+            "historical_weather",
+            "Historical weather",
+            historical_weather_risk.get("score"),
+            BASE_WEIGHTS["historical_weather"],
+            historical_weather_risk.get("quality", 0),
+            "Historical ASOS/METAR airport weather for the selected month.",
         ),
     ]
     components = [component for component in components if component]
@@ -160,7 +152,8 @@ def _combine_final_risk(delay_probability, analysis, flight_2024_context, flight
     final_label = _risk_label_from_score(final_score)
     reasons = [
         f"Weighted final score is {final_score * 100:.1f}%.",
-        "The trained model is the anchor, while historical records, 2024 flights, and live weather act as supporting evidence.",
+        "The trained model is the anchor, while historical records, 2024 flights, and historical airport weather act as supporting evidence.",
+        "Live METAR is shown for situational awareness only and is not weighted into month-based predictions.",
         "No single supporting layer can force a high-risk label by itself.",
     ]
 
@@ -225,6 +218,8 @@ def predict():
     )
     flight_2024_context = get_flight_2024_context(carrier, airport, month)
     flight_2024_risk = score_flight_2024_context(flight_2024_context)
+    historical_weather = get_historical_weather_context(airport, month)
+    historical_weather_risk = score_historical_weather_context(historical_weather)
     live_weather = get_live_metar(airport)
     weather_risk = score_weather_risk(live_weather)
     final_risk_label, final_risk_score, final_risk_components, final_risk_reasons = _combine_final_risk(
@@ -232,7 +227,7 @@ def predict():
         analysis,
         flight_2024_context,
         flight_2024_risk,
-        weather_risk,
+        historical_weather_risk,
     )
 
     record = Prediction(
@@ -271,7 +266,10 @@ def predict():
             "analysis": analysis,
             "flight_2024_context": flight_2024_context,
             "flight_2024_risk": flight_2024_risk,
+            "historical_weather": historical_weather,
+            "historical_weather_risk": historical_weather_risk,
             "live_weather": live_weather,
             "weather_risk": weather_risk,
+            "live_weather_used_in_final_score": False,
         }
     ), 200

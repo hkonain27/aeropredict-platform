@@ -8,7 +8,7 @@ AeroPredict is a full-stack flight delay prediction system built with Flask, sci
 
 - Predicts whether a carrier-airport-month scenario is likely to be delay-heavy
 - Rejects carriers and airports that are not present in the historical dataset
-- Returns a final user-facing risk label from a weighted score based on model probability, historical delay context, 2024 flight records, and live METAR weather risk
+- Returns a final user-facing risk label from a weighted score based on model probability, historical delay context, 2024 flight records, and historical airport weather
 - Shows individual 2024 flight-record evidence from `data/raw/flight_data_2024.csv`
 - Keeps the raw model-only prediction available in the response for explanation
 - Saves the final displayed risk to SQLite for history and dashboard analytics
@@ -59,6 +59,7 @@ The app separates the raw model result from the final displayed risk:
 - Raw model risk: the direct scikit-learn model output from `carrier`, `airport`, `month`, and `arr_flights`
 - Historical analysis risk: a rule-based label using raw model probability plus historical delay rate
 - 2024 flight-record risk: evidence from individual 2024 flights matching the carrier, arrival airport, and month
+- Historical weather risk: selected-month airport weather context from the Iowa State IEM ASOS/METAR archive
 - Final displayed risk: the label shown to users and saved in prediction history after applying data-quality weights to all evidence layers
 
 `POST /predict` returns both:
@@ -67,7 +68,8 @@ The app separates the raw model result from the final displayed risk:
 - `final_risk_score`: weighted final score used to choose the label
 - `final_risk_components`: each evidence layer's score, effective weight, and contribution
 - `raw_model.prediction_label`: model-only risk
-- `weather_risk`: live METAR-based risk contribution
+- `historical_weather` and `historical_weather_risk`: selected-month airport weather context used in the weighted final score
+- `live_weather`, `weather_risk`, and `live_weather_used_in_final_score`: live METAR context shown for awareness only
 - `flight_2024_context`: 2024 flight counts, delay rate, cancellation rate, average delay, and top delay cause
 
 ## Backend
@@ -81,8 +83,9 @@ The Flask backend lives in `backend/` and exposes:
   - rejects unknown carriers and airports
   - estimates arrival volume from historical data
   - loads the trained model
+  - calls the Iowa State IEM ASOS/METAR archive for selected-month historical airport weather
   - calls AviationWeather.gov for live METAR data
-  - returns final risk, raw model risk, probability, historical analysis, 2024 flight-record evidence, model-factor context, and live weather risk
+  - returns final risk, raw model risk, probability, historical analysis, 2024 flight-record evidence, historical weather context, model-factor context, and live weather context
   - saves the final displayed risk to SQLite
 - `GET /predictions`
   - returns the latest saved predictions
@@ -108,11 +111,24 @@ The app converts three-letter U.S. airport codes like `CLT` to ICAO station IDs 
 
 Some airports do not use the mainland U.S. `K` prefix. For example, San Juan `SJU` reports METAR under `TJSJ`, so the backend keeps a deterministic override map for common non-mainland airports.
 
-Live METAR weather affects the final displayed risk through the weighted score:
+Live METAR is current weather only. It is shown for situational awareness, but it is not weighted into month-based predictions because today's weather should not change the risk for every selected month.
+
+## Historical Weather
+
+`POST /predict` also calls the Iowa State IEM ASOS/METAR archive from Flask for airport-level historical weather:
+
+```text
+https://mesonet.agron.iastate.edu/cgi-bin/request/asos.py
+```
+
+The app requests a compact set of fields for the selected airport and selected month in the 2024 reference year, then summarizes disruption signals such as low visibility, low ceilings, gusty wind, precipitation, thunderstorms, and winter precipitation.
+
+Historical weather affects the final displayed risk through the weighted score:
 
 - The model remains the largest influence
-- Weather can raise concern, but it does not automatically force a high-risk label
-- Unavailable weather is omitted from the weighted score
+- Historical weather can raise concern, but it does not automatically force a high-risk label
+- Unavailable historical weather is omitted from the weighted score
+- Live METAR remains display-only
 
 ## Weighted Final Risk
 
@@ -124,7 +140,7 @@ Base evidence weights:
 Model probability: 47%
 Historical delay context: 25%
 2024 individual flight records: 18%
-Live METAR weather: 10%
+Historical airport weather: 10%
 ```
 
 The historical and 2024 layers can receive less effective weight when their evidence is limited. For example, exact 2024 carrier-airport-month evidence with hundreds of completed flights gets stronger weight than a broad fallback month-level match.
@@ -168,6 +184,7 @@ The React frontend lives in `frontend/` and includes:
 - Saved-records table with filtering
 - Historical delay context
 - 2024 flight-record evidence panel
+- Historical airport weather panel
 - Live METAR weather panel
 - Raw model-only result details
 - Scenario comparison between the latest and previous prediction
@@ -269,9 +286,10 @@ npm run build
 ## Current Scope Notes
 
 - The trained model itself uses historical delay-cause data plus estimated arrival volume
-- 2024 flight records and live METAR weather are not trained model features, but both are used as weighted evidence in the final displayed prediction label
+- 2024 flight records and historical airport weather are not trained model features, but both are used as weighted evidence in the final displayed prediction label
+- Live METAR weather is display-only context and is not weighted into month-based predictions
 - The dashboard summarizes processed historical data and saved app predictions
-- External weather calls are cached to respect AviationWeather.gov usage guidance
+- External weather calls are cached to respect AviationWeather.gov and IEM usage guidance
 
 ## Team Alignment
 

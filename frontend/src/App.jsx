@@ -15,6 +15,7 @@ import {
   Tooltip,
   BarChart,
   Bar,
+  LabelList,
   PieChart,
   Pie,
   Cell,
@@ -40,16 +41,43 @@ const MotionDiv = motion.div;
 const pieColors = ["#0f2a5f", "#1d4ed8", "#38bdf8", "#7dd3fc", "#bae6fd"];
 
 const statusStyles = {
-  Low: "bg-white text-blue-950 border-sky-200",
-  "Low Risk": "bg-white text-blue-950 border-sky-200",
-  "Lower Delay Risk": "bg-white text-blue-950 border-sky-200",
-  Medium: "bg-sky-100 text-blue-950 border-sky-300",
-  Moderate: "bg-sky-100 text-blue-950 border-sky-300",
-  "Elevated Delay Risk": "bg-sky-100 text-blue-950 border-sky-300",
-  High: "bg-blue-950 text-white border-blue-950",
-  "High Risk": "bg-blue-950 text-white border-blue-950",
-  "High Delay Risk": "bg-blue-950 text-white border-blue-950",
-  Critical: "bg-blue-950 text-white border-blue-950",
+  Low: "bg-sky-50 text-blue-950 border-sky-200",
+  "Low Risk": "bg-sky-50 text-blue-950 border-sky-200",
+  "Lower Delay Risk": "bg-sky-50 text-blue-950 border-sky-200",
+  Medium: "bg-gray-100 text-blue-950 border-gray-300",
+  Moderate: "bg-gray-100 text-blue-950 border-gray-300",
+  "Elevated Delay Risk": "bg-gray-100 text-blue-950 border-gray-300",
+  High: "bg-rose-50 text-rose-900 border-rose-200",
+  "High Risk": "bg-rose-50 text-rose-900 border-rose-200",
+  "High Delay Risk": "bg-rose-50 text-rose-900 border-rose-200",
+  Critical: "bg-rose-50 text-rose-900 border-rose-200",
+};
+
+const riskThemes = {
+  low: {
+    panel: "border-sky-200 bg-white",
+    accent: "bg-sky-50",
+    badge: "bg-sky-50 text-blue-950 border-sky-200",
+    title: "text-blue-950",
+    progress: "[&_[data-slot=progress-indicator]]:bg-sky-500",
+    bar: "#38bdf8",
+  },
+  medium: {
+    panel: "border-gray-300 bg-white",
+    accent: "bg-gray-50",
+    badge: "bg-gray-100 text-blue-950 border-gray-300",
+    title: "text-blue-950",
+    progress: "[&_[data-slot=progress-indicator]]:bg-gray-500",
+    bar: "#64748b",
+  },
+  high: {
+    panel: "border-rose-200 bg-rose-50",
+    accent: "bg-rose-50",
+    badge: "bg-rose-50 text-rose-900 border-rose-200",
+    title: "text-rose-900",
+    progress: "[&_[data-slot=progress-indicator]]:bg-rose-400",
+    bar: "#fb7185",
+  },
 };
 
 const MONTH_LABELS = {
@@ -93,17 +121,70 @@ const normalizeDashboardData = (payload = {}) => ({
   suggestionScenarios: Array.isArray(payload.suggestionScenarios) ? payload.suggestionScenarios : [],
 });
 
-const formatPercent = (value) => {
-  if (value === null || value === undefined || Number.isNaN(Number(value))) return "n/a";
-  return `${(Number(value) * 100).toFixed(1)}%`;
-};
-
 const formatCount = (value) => {
   if (value === null || value === undefined || Number.isNaN(Number(value))) return "n/a";
   return Number(value).toLocaleString();
 };
 
 const monthName = (value) => MONTH_LABELS[Number(value)] || value;
+
+const toPercentNumber = (value) => {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return null;
+  const number = Number(value);
+  return number <= 1 ? number * 100 : number;
+};
+
+const formatPercentValue = (value) => {
+  const percent = toPercentNumber(value);
+  return percent === null ? "n/a" : `${percent.toFixed(1)}%`;
+};
+
+const frequencyText = (value, noun = "flights") => {
+  const percent = toPercentNumber(value);
+  if (!percent || percent <= 0) return null;
+  const every = Math.max(1, Math.round(100 / percent));
+  return `about 1 in ${every} ${noun}`;
+};
+
+const contextualPercent = (value, noun = "flights") => {
+  const percent = formatPercentValue(value);
+  const frequency = frequencyText(value, noun);
+  return frequency ? `${percent} (${frequency})` : percent;
+};
+
+const delayImpact = (minutes) => {
+  if (minutes === null || minutes === undefined || Number.isNaN(Number(minutes))) return "impact unknown";
+  const value = Number(minutes);
+  if (value < 10) return "minor impact";
+  if (value < 25) return "moderate impact";
+  return "major impact";
+};
+
+const formatDelayMinutes = (minutes) => {
+  if (minutes === null || minutes === undefined || Number.isNaN(Number(minutes))) return "n/a";
+  return `${Number(minutes).toFixed(1)} min (${delayImpact(minutes)})`;
+};
+
+const comparePercent = (value, baseline) => {
+  const percent = toPercentNumber(value);
+  const baselinePercent = toPercentNumber(baseline);
+  if (percent === null || baselinePercent === null) return null;
+
+  const delta = percent - baselinePercent;
+  const direction = Math.abs(delta) < 1
+    ? "about average"
+    : delta > 0
+      ? "higher than average"
+      : "better than average";
+  const amount = Math.abs(delta) < 1 ? "" : ` by ${Math.abs(delta).toFixed(1)} pts`;
+  return `${percent.toFixed(1)}% vs ${baselinePercent.toFixed(1)}% typical -> ${direction}${amount}`;
+};
+
+const riskLevelKey = (label = "") => {
+  if (String(label).toLowerCase().includes("high")) return "high";
+  if (String(label).toLowerCase().includes("elevated") || String(label).toLowerCase().includes("moderate")) return "medium";
+  return "low";
+};
 
 const isWithinDateRange = (createdAt, dateRange) => {
   if (!createdAt) return true;
@@ -331,43 +412,54 @@ export default function App() {
     : null;
   const currentAnalysis = predictionResult?.analysis;
   const historicalContext = currentAnalysis?.historical?.context_used;
-  const exactHistorical = currentAnalysis?.historical?.exact;
   const monthBaseline = currentAnalysis?.historical?.month_baseline;
   const causeMix = historicalContext?.cause_breakdown || [];
-  const matchedRecords = currentAnalysis?.matched_records || [];
   const liveWeather = predictionResult?.live_weather;
   const weatherRisk = predictionResult?.weather_risk;
+  const historicalWeather = predictionResult?.historical_weather;
+  const historicalWeatherRisk = predictionResult?.historical_weather_risk;
   const flight2024Context = predictionResult?.flight_2024_context;
   const flight2024Summary = flight2024Context?.summary;
   const flight2024Risk = predictionResult?.flight_2024_risk;
   const rawModel = predictionResult?.raw_model;
   const finalRiskScore = predictionResult?.final_risk_score;
   const finalRiskComponents = predictionResult?.final_risk_components || [];
+  const componentLabelMap = {
+    model: "Model (main driver)",
+    historical: "Historical (support)",
+    flight_2024: "2024 flights",
+    historical_weather: "Weather history",
+  };
   const riskContributionData = finalRiskComponents.map((component) => ({
-    name: component.label,
+    name: componentLabelMap[component.key] || component.label,
     contribution: component.contribution_percent,
     weight: component.weight_percent,
     score: Math.round(component.score * 1000) / 10,
   }));
-  const finalRiskReasons = predictionResult?.final_risk_reasons || [];
   const displayRiskLabel = predictionResult?.final_risk_label || predictionResult?.prediction_label || currentAnalysis?.risk_label;
-  const predictionPanelClass = displayRiskLabel === "High Delay Risk"
-    ? "border-blue-950 bg-white"
-    : displayRiskLabel === "Elevated Delay Risk"
-      ? "border-sky-300 bg-sky-50"
-      : "border-sky-200 bg-white";
-  const predictionTitleClass = displayRiskLabel === "High Delay Risk"
-    ? "text-blue-950"
-    : displayRiskLabel === "Elevated Delay Risk"
-      ? "text-blue-900"
-      : "text-blue-950";
+  const riskTheme = riskThemes[riskLevelKey(displayRiskLabel)];
   const weatherRiskStyles = {
-    High: "bg-blue-950 text-white border-blue-950",
-    Moderate: "bg-sky-100 text-blue-950 border-sky-300",
-    Low: "bg-white text-blue-950 border-sky-200",
-    Unknown: "bg-sky-50 text-blue-900 border-sky-200",
+    High: "bg-rose-50 text-rose-900 border-rose-200",
+    Moderate: "bg-gray-100 text-blue-950 border-gray-300",
+    Low: "bg-sky-50 text-blue-950 border-sky-200",
+    Unknown: "bg-white text-blue-900 border-sky-200",
   };
   const weatherRiskBadgeClass = weatherRiskStyles[weatherRisk?.level] || weatherRiskStyles.Unknown;
+  const historicalWeatherRiskBadgeClass = weatherRiskStyles[historicalWeatherRisk?.level] || weatherRiskStyles.Unknown;
+  const historicalDelayComparison = comparePercent(historicalContext?.delay_rate, monthBaseline?.delay_rate);
+  const recentDelayComparison = comparePercent(flight2024Summary?.delay_rate, historicalContext?.delay_rate);
+  const sortedCauseMix = [...causeMix]
+    .filter((item) => item.share > 0)
+    .sort((a, b) => b.share - a.share);
+  const primaryCause = sortedCauseMix[0];
+  const secondaryCause = sortedCauseMix[1];
+  const keyTakeaway = predictionResult
+    ? `${displayRiskLabel || "Delay risk"} for ${predictionResult.input.carrier} at ${predictionResult.input.airport} in ${monthName(predictionResult.input.month)}. ${
+        primaryCause
+          ? `The biggest historical driver is ${prettyCauseName(primaryCause.name).toLowerCase()} (${primaryCause.share}%).`
+          : "The score is based on the model, recent flights, historical delay trends, and historical weather."
+      }`
+    : null;
 
   if (loading) {
     return (
@@ -579,32 +671,36 @@ export default function App() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                    {formExamples.map((example) => (
-                      <Button
-                        key={`${example.carrier}-${example.airport}-${example.month}`}
-                        variant="outline"
-                        className="h-auto justify-start rounded-xl border-sky-200 bg-white p-3 text-left text-xs text-blue-950 hover:bg-sky-50"
-                        onClick={() => {
-                          setForm({
-                            carrier: example.carrier,
-                            airport: example.airport,
-                            month: String(example.month),
-                          });
-                          setFieldErrors({});
-                          setPredictionError(null);
-                        }}
-                      >
-                        <span className="flex flex-col gap-1">
+                    {formExamples.map((example) => {
+                      const exampleTone = riskThemes[riskLevelKey(example.risk)];
+                      const delayText = example.delayRate !== null && example.delayRate !== undefined
+                        ? `${riskLevelKey(example.risk) === "low" ? "Only " : ""}~${example.delayRate}% delayed (${frequencyText(example.delayRate) || "historical pattern"})`
+                        : example.label;
+                      return (
+                        <Button
+                          key={`${example.carrier}-${example.airport}-${example.month}`}
+                          variant="outline"
+                          className={`h-auto justify-start rounded-xl p-3 text-left text-sm hover:bg-white ${exampleTone.badge}`}
+                          onClick={() => {
+                            setForm({
+                              carrier: example.carrier,
+                              airport: example.airport,
+                              month: String(example.month),
+                            });
+                            setFieldErrors({});
+                            setPredictionError(null);
+                          }}
+                        >
+                          <span className="flex flex-col gap-1">
                           <span className="font-semibold">{example.risk || "Example"} risk</span>
                           <span>{example.carrier} @ {example.airport} in {monthName(example.month)}</span>
                           <span className="text-blue-700">
-                            {example.delayRate !== null && example.delayRate !== undefined
-                              ? `${example.delayRate}% historical delay`
-                              : example.label}
+                            {delayText}
                           </span>
                         </span>
-                      </Button>
-                    ))}
+                        </Button>
+                      );
+                    })}
                   </div>
 
                   <div>
@@ -670,64 +766,66 @@ export default function App() {
                   )}
 
                   {predictionResult && (
-                    <div className={`rounded-xl border p-4 ${predictionPanelClass}`}>
+                    <div className={`rounded-xl border p-5 ${riskTheme.panel}`}>
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className={`text-lg font-semibold ${predictionTitleClass}`}>
+                          <p className={`text-xl font-semibold ${riskTheme.title}`}>
                             {displayRiskLabel}
                           </p>
                           <p className="mt-1 text-sm text-blue-900">
                             {predictionResult.input.carrier} at {predictionResult.input.airport} in {monthName(predictionResult.input.month)}.
                           </p>
                         </div>
-                        <Badge variant="outline" className={`rounded-full border ${statusStyles[displayRiskLabel] || statusStyles.Moderate}`}>
+                        <Badge variant="outline" className={`rounded-full border px-3 py-1 text-sm ${riskTheme.badge}`}>
                           {finalRiskScore !== undefined ? `${(finalRiskScore * 100).toFixed(1)}%` : `${(predictionResult.delay_probability * 100).toFixed(1)}%`}
                         </Badge>
                       </div>
 
-                      <Progress value={(finalRiskScore ?? predictionResult.delay_probability) * 100} className="mt-3 h-2" />
-                      <p className="mt-2 text-xs text-blue-700">
-                        This is the user-facing risk score. It blends the model score with historical BTS data, 2024 flight evidence, and current METAR weather when available.
-                      </p>
+                      <Progress value={(finalRiskScore ?? predictionResult.delay_probability) * 100} className={`mt-4 h-3 bg-white ${riskTheme.progress}`} />
+
+                      {keyTakeaway && (
+                        <div className={`mt-4 rounded-xl border border-sky-200 p-4 ${riskTheme.accent}`}>
+                          <p className="text-sm font-semibold text-blue-950">Key Takeaway</p>
+                          <p className="mt-1 text-sm text-blue-900">{keyTakeaway}</p>
+                        </div>
+                      )}
+
                       <div className="mt-4 grid grid-cols-1 gap-3 text-sm md:grid-cols-3">
                         <div className="rounded-xl border border-sky-200 bg-white p-3">
                           <p className="text-blue-700">Raw model</p>
                           <p className="mt-1 font-semibold text-blue-950">
                             {rawModel ? `${(rawModel.delay_probability * 100).toFixed(1)}%` : "n/a"}
                           </p>
-                          <p className="text-xs text-blue-700">{rawModel?.prediction_label || "No model result"}</p>
+                          <p className="mt-1 text-sm text-blue-900">{rawModel?.prediction_label || "Model result unavailable"}</p>
                         </div>
                         <div className="rounded-xl border border-sky-200 bg-white p-3">
                           <p className="text-blue-700">2024 evidence</p>
                           <p className="mt-1 font-semibold text-blue-950">
-                            {flight2024Summary ? formatPercent(flight2024Summary.delay_rate) : "n/a"}
+                            {flight2024Summary ? contextualPercent(flight2024Summary.delay_rate) : "n/a"}
                           </p>
-                          <p className="text-xs text-blue-700">{flight2024Risk?.level || "Unknown"} supporting signal</p>
+                          <p className="mt-1 text-sm text-blue-900">{recentDelayComparison || flight2024Risk?.level || "Recent context unavailable"}</p>
                         </div>
                         <div className="rounded-xl border border-sky-200 bg-white p-3">
-                          <p className="text-blue-700">Live METAR</p>
+                          <p className="text-blue-700">Historical weather</p>
                           <p className="mt-1 font-semibold text-blue-950">
-                            {liveWeather?.available ? (liveWeather.flight_category || "Reported") : "Unavailable"}
+                            {historicalWeather?.available ? (historicalWeatherRisk?.level || "Reported") : "Unavailable"}
                           </p>
-                          <p className="text-xs text-blue-700">
-                            Current weather only, not the selected month{liveWeather?.station ? ` at ${liveWeather.station}` : ""}
+                          <p className="mt-1 text-sm text-blue-900">
+                            {historicalWeather?.available
+                              ? `${formatPercentValue(historicalWeather.precipitation_rate)} precipitation observations`
+                              : "No weather context available"}
                           </p>
                         </div>
                       </div>
-                      {rawModel && (
-                        <p className="mt-2 text-xs text-blue-700">
-                          Raw model alone: {rawModel.prediction_label} at {(rawModel.delay_probability * 100).toFixed(1)}%.
-                        </p>
-                      )}
                       {riskContributionData.length > 0 && (
                         <div className="mt-4 rounded-xl border border-sky-200 bg-white p-4">
                           <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
                             <div>
-                              <p className="text-sm font-medium text-blue-950">Why This Score</p>
-                              <p className="text-xs text-blue-700">How each available source contributed to the final risk shown above</p>
+                              <p className="text-base font-semibold text-blue-950">What's driving this prediction</p>
+                              <p className="mt-1 text-sm text-blue-900">Shows how each factor contributed to final risk.</p>
                             </div>
                             <Badge variant="outline" className="w-fit rounded-full border-sky-200 bg-sky-50 text-blue-900">
-                              model-led score
+                              month analysis
                             </Badge>
                           </div>
                           <div className="h-[210px]">
@@ -735,36 +833,19 @@ export default function App() {
                               <BarChart data={riskContributionData} layout="vertical" margin={{ left: 20, right: 20 }}>
                                 <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                                 <XAxis type="number" domain={[0, 50]} tickFormatter={(value) => `${value}%`} />
-                                <YAxis type="category" dataKey="name" width={86} />
+                                <YAxis type="category" dataKey="name" width={116} tick={{ fontSize: 12 }} />
                                 <Tooltip
                                   formatter={(value, name, props) => {
                                     if (name === "contribution") return [`${value}%`, "Final-score contribution"];
                                     return [`${props.payload.weight}%`, "Effective weight"];
                                   }}
                                 />
-                                <Bar dataKey="contribution" fill="#2563eb" radius={[0, 8, 8, 0]} />
+                                <Bar dataKey="contribution" fill={riskTheme.bar} radius={[0, 8, 8, 0]}>
+                                  <LabelList dataKey="contribution" position="right" formatter={(value) => `${value}%`} />
+                                </Bar>
                               </BarChart>
                             </ResponsiveContainer>
                           </div>
-                          <div className="grid grid-cols-1 gap-2 text-xs text-blue-900 md:grid-cols-2">
-                            {finalRiskComponents.map((component) => (
-                              <div key={component.key} className="rounded-xl bg-sky-50 p-3">
-                                <p className="font-medium text-blue-950">{component.label}: {Math.round(component.score * 1000) / 10}% signal</p>
-                                <p className="mt-1">Effective weight: {component.weight_percent}%</p>
-                                <p className="mt-1">{component.detail}</p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {finalRiskReasons.length > 0 && (
-                        <div className="mt-3 rounded-xl border border-sky-200 bg-white p-3">
-                          <p className="text-xs font-medium uppercase tracking-wide text-blue-700">Key takeaway</p>
-                          <ul className="mt-2 space-y-1 text-xs text-blue-900">
-                          {finalRiskReasons.map((reason) => (
-                            <li key={reason}>{reason}</li>
-                          ))}
-                          </ul>
                         </div>
                       )}
 
@@ -772,13 +853,11 @@ export default function App() {
                         <div className="mt-4 space-y-3 rounded-xl border border-sky-200 bg-white p-4">
                           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                             <div>
-                              <p className="text-sm font-medium text-blue-950">What 2024 Flights Say</p>
-                              <p className="mt-1 text-sm text-blue-900">
-                                {flight2024Summary?.label || flight2024Context.message || "No matching 2024 context"}
-                              </p>
+                              <p className="text-base font-semibold text-blue-950">Recent (2024) flight behavior</p>
+                              <p className="mt-1 text-sm text-blue-900">Recent flights show whether this route has been behaving better or worse than its longer-term pattern.</p>
                             </div>
                             <Badge variant="outline" className={`w-fit rounded-full border ${weatherRiskStyles[flight2024Risk?.level] || weatherRiskStyles.Unknown}`}>
-                              {flight2024Risk?.level || "Unknown"} 2024 evidence
+                              {flight2024Risk?.level || "Unknown"}
                             </Badge>
                           </div>
 
@@ -794,26 +873,27 @@ export default function App() {
                                 <div className="rounded-xl bg-sky-50 p-3">
                                   <p className="text-blue-700">Delay rate</p>
                                   <p className="mt-1 text-lg font-semibold text-blue-950">
-                                    {formatPercent(flight2024Summary.delay_rate)}
+                                    {contextualPercent(flight2024Summary.delay_rate)}
                                   </p>
+                                  {recentDelayComparison && <p className="mt-1 text-sm text-blue-900">{recentDelayComparison}</p>}
                                 </div>
                                 <div className="rounded-xl bg-sky-50 p-3">
                                   <p className="text-blue-700">Cancelled</p>
                                   <p className="mt-1 text-lg font-semibold text-blue-950">
-                                    {formatPercent(flight2024Summary.cancellation_rate)}
+                                    {contextualPercent(flight2024Summary.cancellation_rate, "flights")}
                                   </p>
                                 </div>
                                 <div className="rounded-xl bg-sky-50 p-3">
                                   <p className="text-blue-700">Avg delay</p>
                                   <p className="mt-1 text-lg font-semibold text-blue-950">
-                                    {flight2024Summary.avg_arrival_delay_minutes ?? "n/a"} min
+                                    {formatDelayMinutes(flight2024Summary.avg_arrival_delay_minutes)}
                                   </p>
                                 </div>
                               </div>
 
                               {flight2024Risk?.drivers?.length > 0 && (
                                 <ul className="space-y-1 text-sm text-blue-900">
-                                  {flight2024Risk.drivers.map((driver) => (
+                                  {flight2024Risk.drivers.slice(0, 2).map((driver) => (
                                     <li key={driver}>{driver}</li>
                                   ))}
                                 </ul>
@@ -827,67 +907,62 @@ export default function App() {
                         </div>
                       )}
 
-                      {(liveWeather || weatherRisk) && (
+                      {(historicalWeather || historicalWeatherRisk) && (
                         <div className="mt-4 space-y-3 rounded-xl border border-sky-200 bg-white p-4">
                           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                             <div>
-                              <p className="text-sm font-medium text-blue-950">Live Weather Now</p>
+                              <p className="text-base font-semibold text-blue-950">Historical weather pattern</p>
                               <p className="mt-1 text-sm text-blue-900">
-                                Current METAR weather from AviationWeather.gov for {liveWeather?.station || predictionResult.input.airport}. This is live weather, not weather for {monthName(predictionResult.input.month)}
-                                {liveWeather?.cached ? " - cached for this minute" : ""}
+                                {historicalWeather?.available
+                                  ? `${monthName(predictionResult.input.month)} ${historicalWeather.reference_year} observations at ${historicalWeather.station}.`
+                                  : historicalWeather?.message || "Historical airport weather is unavailable for this airport and month."}
                               </p>
                             </div>
-                            <Badge variant="outline" className={`w-fit rounded-full border ${weatherRiskBadgeClass}`}>
-                              {weatherRisk?.level || "Unknown"} weather risk
+                            <Badge variant="outline" className={`w-fit rounded-full border ${historicalWeatherRiskBadgeClass}`}>
+                              {historicalWeatherRisk?.level || "Unknown"}
                             </Badge>
                           </div>
 
-                          {liveWeather?.available ? (
+                          {historicalWeather?.available ? (
                             <>
                               <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
                                 <div className="rounded-xl bg-sky-50 p-3">
-                                  <p className="text-blue-700">Category</p>
+                                  <p className="text-blue-700">Observations</p>
                                   <p className="mt-1 text-lg font-semibold text-blue-950">
-                                    {liveWeather.flight_category || "n/a"}
+                                    {formatCount(historicalWeather.observations)}
                                   </p>
                                 </div>
                                 <div className="rounded-xl bg-sky-50 p-3">
-                                  <p className="text-blue-700">Visibility</p>
+                                  <p className="text-blue-700">Low visibility</p>
                                   <p className="mt-1 text-lg font-semibold text-blue-950">
-                                    {liveWeather.visibility_miles ?? "n/a"} mi
+                                    {contextualPercent(historicalWeather.low_visibility_rate, "observations")}
                                   </p>
                                 </div>
                                 <div className="rounded-xl bg-sky-50 p-3">
-                                  <p className="text-blue-700">Wind</p>
+                                  <p className="text-blue-700">Gusty wind</p>
                                   <p className="mt-1 text-lg font-semibold text-blue-950">
-                                    {liveWeather.wind_speed_kt ?? "n/a"} kt
+                                    {contextualPercent(historicalWeather.gusty_wind_rate, "observations")}
                                   </p>
                                 </div>
                                 <div className="rounded-xl bg-sky-50 p-3">
-                                  <p className="text-blue-700">Gusts</p>
+                                  <p className="text-blue-700">Precipitation</p>
                                   <p className="mt-1 text-lg font-semibold text-blue-950">
-                                    {liveWeather.wind_gust_kt ?? "n/a"} kt
+                                    {contextualPercent(historicalWeather.precipitation_rate, "observations")}
                                   </p>
                                 </div>
                               </div>
 
-                              {weatherRisk?.drivers?.length > 0 && (
+                              {historicalWeatherRisk?.drivers?.length > 0 && (
                                 <ul className="space-y-1 text-sm text-blue-900">
-                                  {weatherRisk.drivers.map((driver) => (
+                                  {historicalWeatherRisk.drivers.slice(0, 2).map((driver) => (
                                     <li key={driver}>{driver}</li>
                                   ))}
                                 </ul>
                               )}
-
-                              {liveWeather.raw_text && (
-                                <p className="rounded-xl bg-sky-50 p-3 text-xs text-blue-700">
-                                  {liveWeather.raw_text}
-                                </p>
-                              )}
                             </>
                           ) : (
                             <p className="text-sm text-blue-900">
-                              {liveWeather?.message || weatherRisk?.drivers?.[0] || "Live weather is not currently available for this airport."}
+                              {historicalWeatherRisk?.drivers?.[0] || "Historical airport weather is unavailable."}
                             </p>
                           )}
                         </div>
@@ -897,10 +972,8 @@ export default function App() {
                         <div className="mt-4 space-y-4 rounded-xl border border-sky-200 bg-white p-4">
                           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                             <div>
-                              <p className="text-sm font-medium text-blue-950">What Historical BTS Data Says</p>
-                              <p className="mt-1 text-sm text-blue-900">
-                                {historicalContext?.label || "No matching historical context found"} - {currentAnalysis.historical.reliability} evidence
-                              </p>
+                              <p className="text-base font-semibold text-blue-950">Long-term delay trends</p>
+                              <p className="mt-1 text-sm text-blue-900">This compares the selected airline and airport against the typical month pattern.</p>
                             </div>
                             <Badge variant="outline" className={`w-fit rounded-full border ${statusStyles[currentAnalysis.risk_label] || statusStyles.Moderate}`}>
                               {currentAnalysis.risk_label}
@@ -911,19 +984,14 @@ export default function App() {
                             <div className="rounded-xl bg-sky-50 p-3">
                               <p className="text-blue-700">Historical delay rate</p>
                               <p className="mt-1 text-xl font-semibold text-blue-950">
-                                {formatPercent(historicalContext?.delay_rate)}
+                                {contextualPercent(historicalContext?.delay_rate)}
                               </p>
-                              <p className="text-xs text-blue-700">
-                                {formatCount(historicalContext?.delayed_arrivals)} delayed of {formatCount(historicalContext?.arrivals)}
-                              </p>
+                              {historicalDelayComparison && <p className="mt-1 text-sm text-blue-900">{historicalDelayComparison}</p>}
                             </div>
                             <div className="rounded-xl bg-sky-50 p-3">
                               <p className="text-blue-700">Month baseline</p>
                               <p className="mt-1 text-xl font-semibold text-blue-950">
-                                {formatPercent(monthBaseline?.delay_rate)}
-                              </p>
-                              <p className="text-xs text-blue-700">
-                                {monthBaseline ? `${monthBaseline.records} BTS rows in ${monthName(predictionResult.input.month)}` : "No baseline"}
+                                {contextualPercent(monthBaseline?.delay_rate)}
                               </p>
                             </div>
                             <div className="rounded-xl bg-sky-50 p-3">
@@ -931,22 +999,25 @@ export default function App() {
                               <p className="mt-1 text-xl font-semibold text-blue-950">
                                 {currentAnalysis.availability.exact_matches}
                               </p>
-                              <p className="text-xs text-blue-700">
-                                {exactHistorical?.years?.length ? `${exactHistorical.years[0]}-${exactHistorical.years[exactHistorical.years.length - 1]}` : "Using nearest context"}
-                              </p>
                             </div>
                             <div className="rounded-xl bg-sky-50 p-3">
                               <p className="text-blue-700">Average delay minutes</p>
                               <p className="mt-1 text-xl font-semibold text-blue-950">
-                                {historicalContext?.avg_delay_minutes_per_delayed_arrival ?? "n/a"}
+                                {formatDelayMinutes(historicalContext?.avg_delay_minutes_per_delayed_arrival)}
                               </p>
-                              <p className="text-xs text-blue-700">per delayed arrival</p>
                             </div>
                           </div>
 
                           {causeMix.length > 0 && (
-                            <div className="space-y-2">
-                              <p className="text-xs font-medium uppercase tracking-wide text-blue-700">Main historical delay causes</p>
+                            <div className="space-y-3">
+                              <p className="text-sm font-medium text-blue-950">
+                                Primary cause: {prettyCauseName(primaryCause.name)} ({primaryCause.share}%)
+                              </p>
+                              {secondaryCause && (
+                                <p className="text-sm text-blue-900">
+                                  Secondary: {prettyCauseName(secondaryCause.name)} ({secondaryCause.share}%)
+                                </p>
+                              )}
                               {causeMix
                                 .filter((item) => item.share > 0)
                                 .sort((a, b) => b.share - a.share)
@@ -964,50 +1035,39 @@ export default function App() {
                                 ))}
                             </div>
                           )}
-
-                          {matchedRecords.length > 0 && (
-                            <div className="overflow-x-auto">
-                              <table className="w-full min-w-[520px] border-separate border-spacing-y-2 text-xs">
-                                <thead>
-                                  <tr className="text-left text-blue-700">
-                                    <th className="px-3">Year</th>
-                                    <th className="px-3">Carrier</th>
-                                    <th className="px-3">Airport</th>
-                                    <th className="px-3">Arrivals</th>
-                                    <th className="px-3">Delay rate</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {matchedRecords.slice(0, 5).map((record) => (
-                                    <tr key={`${record.year}-${record.carrier}-${record.airport}-${record.month}`} className="bg-sky-50 text-blue-950">
-                                      <td className="rounded-l-xl px-3 py-2">{record.year}</td>
-                                      <td className="px-3 py-2">{record.carrier}</td>
-                                      <td className="px-3 py-2">{record.airport}</td>
-                                      <td className="px-3 py-2">{formatCount(record.arrivals)}</td>
-                                      <td className="rounded-r-xl px-3 py-2">{formatPercent(record.delay_rate)}</td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          )}
                         </div>
                       )}
 
-                      {predictionResult.feature_importances?.length > 0 && (
-                        <div className="mt-4 space-y-2">
-                          <p className="text-xs font-medium uppercase tracking-wide text-blue-700">Raw model details</p>
-                          {predictionResult.feature_importances.map((item) => (
-                            <div key={item.feature}>
-                              <div className="mb-1 flex justify-between text-xs text-blue-900">
-                                <span>{item.feature.replaceAll("_", " ")}</span>
-                                <span>{item.importance}%</span>
-                              </div>
-                              <div className="h-1.5 w-full rounded-full bg-sky-200">
-                                <div className="h-1.5 rounded-full bg-blue-600" style={{ width: `${item.importance}%` }} />
-                              </div>
+                      {(liveWeather || weatherRisk) && (
+                        <div className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <p className="text-base font-semibold text-blue-950">Live current conditions</p>
+                              <p className="mt-1 text-sm text-blue-900">
+                                This is current weather, not for the selected month, and is not used in the {monthName(predictionResult.input.month)} score.
+                              </p>
                             </div>
-                          ))}
+                            <div className="flex flex-wrap gap-2 text-sm">
+                              <Badge variant="outline" className={`rounded-full border ${weatherRiskBadgeClass}`}>
+                                {liveWeather?.available ? (liveWeather.flight_category || "Reported") : "Unavailable"}
+                              </Badge>
+                              {liveWeather?.available && (
+                                <>
+                                  <Badge variant="outline" className="rounded-full border-sky-200 bg-white text-blue-900">
+                                    {liveWeather.visibility_miles ?? "n/a"} mi
+                                  </Badge>
+                                  <Badge variant="outline" className="rounded-full border-sky-200 bg-white text-blue-900">
+                                    {liveWeather.wind_speed_kt ?? "n/a"} kt wind
+                                  </Badge>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          {!liveWeather?.available && (
+                            <p className="mt-3 text-sm text-blue-900">
+                              {liveWeather?.message || "Live weather is not currently available for this airport."}
+                            </p>
+                          )}
                         </div>
                       )}
                     </div>

@@ -48,10 +48,41 @@ class ApiRoutesTestCase(unittest.TestCase):
                 "drivers": ["No major live-weather delay signal detected."],
             },
         )
+        self.historical_weather_patcher = patch(
+            "routes.predict.get_historical_weather_context",
+            return_value={
+                "available": True,
+                "airport": "ORD",
+                "station": "ORD",
+                "month": 7,
+                "reference_year": 2024,
+                "source": "Iowa State IEM ASOS/METAR archive",
+                "observations": 700,
+                "low_visibility_rate": 0.01,
+                "low_ceiling_rate": 0.01,
+                "gusty_wind_rate": 0.02,
+                "precipitation_rate": 0.08,
+                "thunderstorm_rate": 0.01,
+                "winter_precip_rate": 0,
+            },
+        )
+        self.historical_weather_risk_patcher = patch(
+            "routes.predict.score_historical_weather_context",
+            return_value={
+                "level": "Low",
+                "score": 0.28,
+                "quality": 1.0,
+                "drivers": ["Historical weather did not show a major disruption pattern for this month."],
+            },
+        )
         self.weather_patcher.start()
         self.risk_patcher.start()
+        self.historical_weather_patcher.start()
+        self.historical_weather_risk_patcher.start()
 
     def tearDown(self):
+        self.historical_weather_risk_patcher.stop()
+        self.historical_weather_patcher.stop()
         self.risk_patcher.stop()
         self.weather_patcher.stop()
 
@@ -87,8 +118,11 @@ class ApiRoutesTestCase(unittest.TestCase):
         self.assertIn("analysis", body)
         self.assertIn("flight_2024_context", body)
         self.assertIn("flight_2024_risk", body)
+        self.assertIn("historical_weather", body)
+        self.assertIn("historical_weather_risk", body)
         self.assertIn("live_weather", body)
         self.assertIn("weather_risk", body)
+        self.assertFalse(body["live_weather_used_in_final_score"])
         self.assertTrue(body["flight_2024_context"]["available"])
         self.assertEqual(body["weather_risk"]["level"], "Low")
         self.assertEqual(body["prediction_label"], body["final_risk_label"])
@@ -105,7 +139,7 @@ class ApiRoutesTestCase(unittest.TestCase):
         self.assertEqual(len(history_body["predictions"]), 1)
         self.assertEqual(history_body["predictions"][0]["prediction_label"], body["final_risk_label"])
 
-    def test_predict_route_uses_weather_risk_as_weighted_supporting_signal(self):
+    def test_predict_route_keeps_live_weather_display_only(self):
         with patch(
             "routes.predict.get_live_metar",
             return_value={
@@ -127,7 +161,7 @@ class ApiRoutesTestCase(unittest.TestCase):
                 "drivers": ["Live test weather is high risk."],
             },
         ):
-            response = self.client.post(
+            high_weather_response = self.client.post(
                 "/predict",
                 json={
                     "carrier": "AA",
@@ -135,22 +169,53 @@ class ApiRoutesTestCase(unittest.TestCase):
                     "month": 12,
                 },
             )
-        body = response.get_json()
+        with patch(
+            "routes.predict.get_live_metar",
+            return_value={
+                "available": True,
+                "station": "KCLT",
+                "cached": False,
+                "flight_category": "VFR",
+                "wind_speed_kt": 5,
+                "wind_gust_kt": None,
+                "visibility_miles": 10,
+                "raw_text": "KCLT test METAR VFR",
+                "observation_time": "2026-04-14T18:52:00Z",
+            },
+        ), patch(
+            "routes.predict.score_weather_risk",
+            return_value={
+                "level": "Low",
+                "score": 0,
+                "drivers": ["No major live-weather delay signal detected."],
+            },
+        ):
+            low_weather_response = self.client.post(
+                "/predict",
+                json={
+                    "carrier": "AA",
+                    "airport": "CLT",
+                    "month": 12,
+                },
+            )
+        body = high_weather_response.get_json()
+        low_weather_body = low_weather_response.get_json()
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(high_weather_response.status_code, 200)
+        self.assertEqual(low_weather_response.status_code, 200)
         self.assertEqual(body["weather_risk"]["level"], "High")
-        self.assertEqual(body["final_risk_label"], "Elevated Delay Risk")
-        self.assertEqual(body["prediction_label"], "Elevated Delay Risk")
-        self.assertIn("raw_model", body)
-        self.assertEqual(body["raw_model"]["prediction_label"], "Lower Delay Risk")
+        self.assertFalse(body["live_weather_used_in_final_score"])
         self.assertIn("final_risk_score", body)
         self.assertIn("final_risk_components", body)
+        self.assertEqual(body["final_risk_score"], low_weather_body["final_risk_score"])
+        self.assertNotIn("weather", {component["key"] for component in body["final_risk_components"]})
+        self.assertIn("historical_weather", {component["key"] for component in body["final_risk_components"]})
 
         history_response = self.client.get("/predictions")
         history_body = history_response.get_json()
 
         self.assertEqual(history_response.status_code, 200)
-        self.assertEqual(history_body["predictions"][0]["prediction_label"], "Elevated Delay Risk")
+        self.assertEqual(len(history_body["predictions"]), 2)
 
     def test_predict_route_uses_2024_flight_records_as_weighted_supporting_signal(self):
         response = self.client.post(
