@@ -38,43 +38,52 @@ import { motion } from "framer-motion";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
 const MotionDiv = motion.div;
-const pieColors = ["#0f2a5f", "#1d4ed8", "#38bdf8", "#7dd3fc", "#bae6fd"];
+const pieColors = ["#7dd3fc", "#818cf8", "#fde047", "#fb7185", "#34d399"];
+const chartTextColor = "#cbd5e1";
+const chartGridColor = "rgba(148, 163, 184, 0.28)";
+const chartTooltipStyle = {
+  backgroundColor: "#f9fafb",
+  borderRadius: "8px",
+  borderColor: "#e5e7eb",
+};
+const chartTooltipItemStyle = { color: "#1f2937" };
+const chartTooltipLabelStyle = { color: "#6b7280", fontSize: "12px" };
 
 const statusStyles = {
-  Low: "bg-sky-50 text-blue-950 border-sky-200",
-  "Low Risk": "bg-sky-50 text-blue-950 border-sky-200",
-  "Lower Delay Risk": "bg-sky-50 text-blue-950 border-sky-200",
-  Medium: "bg-gray-100 text-blue-950 border-gray-300",
-  Moderate: "bg-gray-100 text-blue-950 border-gray-300",
-  "Elevated Delay Risk": "bg-gray-100 text-blue-950 border-gray-300",
-  High: "bg-rose-50 text-rose-900 border-rose-200",
-  "High Risk": "bg-rose-50 text-rose-900 border-rose-200",
-  "High Delay Risk": "bg-rose-50 text-rose-900 border-rose-200",
-  Critical: "bg-rose-50 text-rose-900 border-rose-200",
+  Low: "bg-cyan-300/15 text-cyan-100 border-cyan-300/40",
+  "Low Risk": "bg-cyan-300/15 text-cyan-100 border-cyan-300/40",
+  "Lower Delay Risk": "bg-cyan-300/15 text-cyan-100 border-cyan-300/40",
+  Medium: "bg-indigo-300/15 text-indigo-100 border-indigo-300/40",
+  Moderate: "bg-indigo-300/15 text-indigo-100 border-indigo-300/40",
+  "Elevated Delay Risk": "bg-indigo-300/15 text-indigo-100 border-indigo-300/40",
+  High: "bg-rose-300/15 text-rose-100 border-rose-300/40",
+  "High Risk": "bg-rose-300/15 text-rose-100 border-rose-300/40",
+  "High Delay Risk": "bg-rose-300/15 text-rose-100 border-rose-300/40",
+  Critical: "bg-rose-300/15 text-rose-100 border-rose-300/40",
 };
 
 const riskThemes = {
   low: {
-    panel: "border-sky-200 bg-white",
-    accent: "bg-sky-50",
-    badge: "bg-sky-50 text-blue-950 border-sky-200",
-    title: "text-blue-950",
-    progress: "[&_[data-slot=progress-indicator]]:bg-sky-500",
-    bar: "#38bdf8",
+    panel: "border-cyan-300/30 bg-card",
+    accent: "border-cyan-300/25 bg-cyan-300/10",
+    badge: "bg-cyan-300/15 text-cyan-100 border-cyan-300/30",
+    title: "text-cyan-100",
+    progress: "[&_[data-slot=progress-indicator]]:bg-cyan-300",
+    bar: "#7dd3fc",
   },
   medium: {
-    panel: "border-gray-300 bg-white",
-    accent: "bg-gray-50",
-    badge: "bg-gray-100 text-blue-950 border-gray-300",
-    title: "text-blue-950",
-    progress: "[&_[data-slot=progress-indicator]]:bg-gray-500",
-    bar: "#64748b",
+    panel: "border-indigo-300/30 bg-card",
+    accent: "border-indigo-300/25 bg-indigo-300/10",
+    badge: "bg-indigo-300/15 text-indigo-100 border-indigo-300/30",
+    title: "text-indigo-100",
+    progress: "[&_[data-slot=progress-indicator]]:bg-indigo-300",
+    bar: "#818cf8",
   },
   high: {
-    panel: "border-rose-200 bg-rose-50",
-    accent: "bg-rose-50",
-    badge: "bg-rose-50 text-rose-900 border-rose-200",
-    title: "text-rose-900",
+    panel: "border-rose-300/30 bg-card",
+    accent: "border-rose-300/25 bg-rose-300/10",
+    badge: "bg-rose-300/15 text-rose-100 border-rose-300/30",
+    title: "text-rose-100",
     progress: "[&_[data-slot=progress-indicator]]:bg-rose-400",
     bar: "#fb7185",
   },
@@ -226,10 +235,10 @@ const validateField = (field, value) => {
 
 function EmptyPanel({ title, description }) {
   return (
-    <div className="flex h-full min-h-[220px] items-center justify-center rounded-2xl border border-dashed border-sky-200 bg-sky-50 p-6 text-center">
+    <div className="flex h-full min-h-[220px] items-center justify-center rounded-2xl border border-dashed border-border bg-muted p-6 text-center">
       <div className="max-w-sm">
-        <p className="text-sm font-medium text-blue-950">{title}</p>
-        <p className="mt-2 text-sm text-blue-700">{description}</p>
+        <p className="text-sm font-medium text-foreground">{title}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{description}</p>
       </div>
     </div>
   );
@@ -273,8 +282,6 @@ export default function App() {
   const [predictionResult, setPredictionResult] = useState(null);
   const [comparisonBaseline, setComparisonBaseline] = useState(null);
   const [predictionError, setPredictionError] = useState(null);
-  const [history, setHistory] = useState([]);
-
   const fetchDashboardData = async () => {
     try {
       setDashboardError(null);
@@ -287,36 +294,6 @@ export default function App() {
       setDashboardError("Could not load dashboard data from the backend.");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchHistory = async () => {
-    if (!authToken) {
-      setHistory([]);
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_BASE}/api/predictions-history`, {
-        headers: authHeaders(),
-      });
-
-      if (response.status === 401) {
-        clearAuth();
-        return;
-      }
-
-      if (!response.ok) throw new Error("Failed to load prediction history");
-
-      const json = await response.json();
-      if (json.status === "success" && Array.isArray(json.history)) {
-        setHistory(json.history);
-      } else {
-        setHistory([]);
-      }
-    } catch (error) {
-      console.error(error);
-      setHistory([]);
     }
   };
 
@@ -412,19 +389,13 @@ export default function App() {
     clearAuth();
   };
 
-  const loadAppData = () => {
-    setLoading(true);
-    fetchDashboardData();
-    fetchHistory();
-  };
-
   useEffect(() => {
     if (authToken) {
       loadProfile();
-      loadAppData();
+      setLoading(true);
+      fetchDashboardData();
     } else {
       setLoading(false);
-      setHistory([]);
     }
   }, [authToken]);
 
@@ -473,7 +444,6 @@ export default function App() {
       } else {
         setComparisonBaseline(predictionResult);
         setPredictionResult(json);
-        fetchHistory();
         fetchDashboardData();
       }
     } catch (err) {
@@ -568,10 +538,10 @@ export default function App() {
   const displayRiskLabel = predictionResult?.final_risk_label || predictionResult?.prediction_label || currentAnalysis?.risk_label;
   const riskTheme = riskThemes[riskLevelKey(displayRiskLabel)];
   const weatherRiskStyles = {
-    High: "bg-rose-50 text-rose-900 border-rose-200",
-    Moderate: "bg-gray-100 text-blue-950 border-gray-300",
-    Low: "bg-sky-50 text-blue-950 border-sky-200",
-    Unknown: "bg-white text-blue-900 border-sky-200",
+    High: "bg-rose-300/15 text-rose-100 border-rose-300/40",
+    Moderate: "bg-indigo-300/15 text-indigo-100 border-indigo-300/40",
+    Low: "bg-cyan-300/15 text-cyan-100 border-cyan-300/40",
+    Unknown: "bg-muted text-muted-foreground border-border",
   };
   const weatherRiskBadgeClass = weatherRiskStyles[weatherRisk?.level] || weatherRiskStyles.Unknown;
   const historicalWeatherRiskBadgeClass = weatherRiskStyles[historicalWeatherRisk?.level] || weatherRiskStyles.Unknown;
@@ -591,11 +561,11 @@ export default function App() {
     : null;
 
   const renderAuthPage = () => (
-    <div className="flex min-h-screen items-center justify-center bg-sky-50 px-4 py-12">
-      <div className="w-full max-w-md space-y-6 rounded-3xl border border-sky-200 bg-white p-8 shadow-sm">
+    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12 text-foreground">
+      <div className="w-full max-w-md space-y-6 rounded-3xl border border-border bg-card p-8 shadow-sm">
         <div className="space-y-2 text-center">
-          <h1 className="text-3xl font-bold text-blue-950">AeroPredict Login</h1>
-          <p className="text-sm text-blue-700">Create an account or sign in to save your profile and see personalized data.</p>
+          <h1 className="text-3xl font-bold text-card-foreground">AeroPredict Login</h1>
+          <p className="text-sm text-muted-foreground">Create an account or sign in to save your profile and see personalized data.</p>
         </div>
 
         {authError && (
@@ -606,7 +576,7 @@ export default function App() {
 
         <div className="space-y-4">
           <div>
-            <label className="mb-2 block text-sm font-medium text-blue-900">Email</label>
+            <label className="mb-2 block text-sm font-medium text-card-foreground">Email</label>
             <Input
               type="email"
               value={authForm.email}
@@ -616,7 +586,7 @@ export default function App() {
           </div>
           {authMode === "register" && (
             <div>
-              <label className="mb-2 block text-sm font-medium text-blue-900">Name</label>
+              <label className="mb-2 block text-sm font-medium text-card-foreground">Name</label>
               <Input
                 type="text"
                 value={authForm.name}
@@ -626,7 +596,7 @@ export default function App() {
             </div>
           )}
           <div>
-            <label className="mb-2 block text-sm font-medium text-blue-900">Password</label>
+            <label className="mb-2 block text-sm font-medium text-card-foreground">Password</label>
             <Input
               type="password"
               value={authForm.password}
@@ -639,16 +609,16 @@ export default function App() {
           </Button>
         </div>
 
-        <div className="pt-4 text-center text-sm text-blue-700">
+        <div className="pt-4 text-center text-sm text-muted-foreground">
           {authMode === "login" ? (
             <span>
-              New here? <button className="font-semibold text-blue-950 hover:underline" onClick={() => { setAuthMode("register"); setAuthError(null); }}>
+              New here? <button className="font-semibold text-primary hover:underline" onClick={() => { setAuthMode("register"); setAuthError(null); }}>
                 Create an account
               </button>
             </span>
           ) : (
             <span>
-              Already have an account? <button className="font-semibold text-blue-950 hover:underline" onClick={() => { setAuthMode("login"); setAuthError(null); }}>
+              Already have an account? <button className="font-semibold text-primary hover:underline" onClick={() => { setAuthMode("login"); setAuthError(null); }}>
                 Sign in
               </button>
             </span>
@@ -664,14 +634,14 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-sky-50">
-        <RefreshCcw className="h-6 w-6 animate-spin text-blue-700" />
+      <div className="flex h-screen items-center justify-center bg-background">
+        <RefreshCcw className="h-6 w-6 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-sky-50 text-blue-950">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-7xl p-4 md:p-8">
         <MotionDiv
           initial={{ opacity: 0, y: 18 }}
@@ -681,37 +651,37 @@ export default function App() {
         >
           <div>
             <div className="mb-2 flex items-center gap-2">
-              <Badge className="rounded-full bg-blue-100 px-3 py-1 text-blue-700 hover:bg-blue-100">
+              <Badge className="rounded-full bg-primary px-3 py-1 text-primary-foreground hover:bg-primary">
                 AeroPredict
               </Badge>
-              <Badge variant="outline" className="rounded-full border-sky-200 bg-white text-blue-900">
+              <Badge variant="outline" className="rounded-full border-border bg-card text-muted-foreground">
                 arrival delay risk
               </Badge>
             </div>
             <h1 className="text-3xl font-bold tracking-tight md:text-4xl">AeroPredict</h1>
-            <p className="mt-2 max-w-3xl text-sm text-blue-900 md:text-base">
+            <p className="mt-2 max-w-3xl text-sm text-muted-foreground md:text-base">
               Predict flight delay risk, explore saved delay patterns, and compare scenarios in one place.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             {userProfile && (
-              <div className="rounded-2xl border border-sky-200 bg-white px-4 py-2 text-sm text-blue-950">
+              <div className="rounded-2xl border border-border bg-card px-4 py-2 text-sm text-card-foreground">
                 Signed in as <span className="font-semibold">{userProfile.name}</span>
               </div>
             )}
-            <Button variant="outline" className="rounded-2xl" onClick={() => { setLoading(true); fetchDashboardData(); fetchHistory(); }}>
+            <Button variant="outline" className="rounded-2xl" onClick={() => { setLoading(true); fetchDashboardData(); }}>
               <RefreshCcw className="mr-2 h-4 w-4" /> Refresh
             </Button>
-            <Button variant="ghost" className="rounded-2xl text-blue-950" onClick={handleLogout}>
+            <Button variant="ghost" className="rounded-2xl text-foreground hover:bg-muted" onClick={handleLogout}>
               Logout
             </Button>
           </div>
         </MotionDiv>
 
         {dashboardError && (
-          <Alert className="mb-6 rounded-2xl border-sky-300 bg-white">
-            <AlertTriangle className="h-4 w-4 text-blue-950" />
-            <AlertDescription className="text-blue-950">{dashboardError}</AlertDescription>
+          <Alert className="mb-6 rounded-2xl border-border bg-card">
+            <AlertTriangle className="h-4 w-4 text-primary" />
+            <AlertDescription className="text-card-foreground">{dashboardError}</AlertDescription>
           </Alert>
         )}
 
@@ -730,13 +700,13 @@ export default function App() {
                   <CardContent className="p-5">
                     <div className="flex items-start justify-between">
                       <div>
-                        <p className="text-sm text-blue-700">{card.title}</p>
+                        <p className="text-sm text-muted-foreground">{card.title}</p>
                         <h2 className="mt-2 text-3xl font-semibold">{card.value}</h2>
-                        <p className="mt-2 text-sm text-blue-700">
-                          <span className="font-medium text-blue-900">{card.change}</span>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          <span className="font-medium text-foreground">{card.change}</span>
                         </p>
                       </div>
-                      <div className="rounded-2xl bg-sky-100 p-3">
+                      <div className="rounded-2xl bg-muted p-3 text-primary">
                         <Icon className="h-5 w-5" />
                       </div>
                     </div>
@@ -757,14 +727,17 @@ export default function App() {
               {data.monthlyDelayData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={data.monthlyDelayData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#bae6fd" />
-                    <XAxis dataKey="monthLabel" tick={{ fill: "#0f2a5f" }} />
-                    <YAxis tick={{ fill: "#0f2a5f" }} tickFormatter={(value) => `${value}%`} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
+                    <XAxis dataKey="monthLabel" tick={{ fill: chartTextColor }} />
+                    <YAxis tick={{ fill: chartTextColor }} tickFormatter={(value) => `${value}%`} />
                     <Tooltip
+                      contentStyle={chartTooltipStyle}
+                      itemStyle={chartTooltipItemStyle}
+                      labelStyle={chartTooltipLabelStyle}
                       labelFormatter={(label) => `Month: ${label}`}
                       formatter={(value) => [`${value}%`, "Historical delay rate"]}
                     />
-                    <Bar dataKey="avgDelay" fill="#1d4ed8" radius={[8, 8, 0, 0]} name="Historical delay rate" />
+                    <Bar dataKey="avgDelay" fill="#7dd3fc" radius={[8, 8, 0, 0]} name="Historical delay rate" />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -790,8 +763,13 @@ export default function App() {
                         <Cell key={entry.name} fill={pieColors[index % pieColors.length]} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value) => `${value}%`} />
-                    <Legend />
+                    <Tooltip
+                      contentStyle={chartTooltipStyle}
+                      itemStyle={chartTooltipItemStyle}
+                      labelStyle={chartTooltipLabelStyle}
+                      formatter={(value) => `${value}%`}
+                    />
+                    <Legend wrapperStyle={{ color: chartTextColor }} />
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
@@ -805,7 +783,7 @@ export default function App() {
         </div>
 
         <Tabs defaultValue="predictions" className="w-full">
-          <TabsList className="mb-4 grid w-full grid-cols-3 rounded-2xl bg-white p-1 shadow-sm md:w-[420px]">
+          <TabsList className="mb-4 grid w-full grid-cols-3 rounded-2xl bg-card p-1 shadow-sm md:w-[420px]">
             <TabsTrigger value="overview" className="rounded-xl">Overview</TabsTrigger>
             <TabsTrigger value="predictions" className="rounded-xl">Predictions</TabsTrigger>
             <TabsTrigger value="history" className="rounded-xl">History</TabsTrigger>
@@ -822,11 +800,16 @@ export default function App() {
                   {data.airportRiskData.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={data.airportRiskData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="airport" />
-                        <YAxis />
-                        <Tooltip formatter={(value) => `${value}%`} />
-                        <Bar dataKey="risk" radius={[8, 8, 0, 0]} fill="#2563eb" />
+                        <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
+                        <XAxis dataKey="airport" tick={{ fill: chartTextColor }} />
+                        <YAxis tick={{ fill: chartTextColor }} />
+                        <Tooltip
+                          contentStyle={chartTooltipStyle}
+                          itemStyle={chartTooltipItemStyle}
+                          labelStyle={chartTooltipLabelStyle}
+                          formatter={(value) => `${value}%`}
+                        />
+                        <Bar dataKey="risk" radius={[8, 8, 0, 0]} fill="#818cf8" />
                       </BarChart>
                     </ResponsiveContainer>
                   ) : (
@@ -844,25 +827,25 @@ export default function App() {
                   <CardDescription>Real explanations grounded in the delay-cause dataset</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-5">
-                  <div className="rounded-2xl bg-sky-50 p-4">
+                  <div className="rounded-2xl bg-muted p-4">
                     <div className="mb-2 flex items-center gap-2 text-sm font-medium"><MapPin className="h-4 w-4" /> Highest average risk</div>
-                    <p className="text-sm text-blue-900">
+                    <p className="text-sm text-muted-foreground">
                       {topAirportRisk
                         ? `${topAirportRisk.airport} currently has the highest average arrival delay risk in the dashboard data at ${topAirportRisk.risk}%.`
                         : "Airport-level risk insights will appear here once dashboard data is loaded."}
                     </p>
                   </div>
-                  <div className="rounded-2xl bg-sky-50 p-4">
+                  <div className="rounded-2xl bg-muted p-4">
                     <div className="mb-2 flex items-center gap-2 text-sm font-medium"><Activity className="h-4 w-4" /> Strongest system-wide cause</div>
-                    <p className="text-sm text-blue-900">
+                    <p className="text-sm text-muted-foreground">
                       {topCause
                         ? `${prettyCauseName(topCause.name)} is currently the largest contributor to total delay minutes, accounting for about ${topCause.value}% of the overall delay burden.`
                         : "Cause-level insights will appear here when cause totals are available."}
                     </p>
                   </div>
-                  <div className="rounded-2xl bg-sky-50 p-4">
+                  <div className="rounded-2xl bg-muted p-4">
                     <div className="mb-2 flex items-center gap-2 text-sm font-medium"><TrendingUp className="h-4 w-4" /> What this model predicts</div>
-                    <p className="text-sm text-blue-900">
+                    <p className="text-sm text-muted-foreground">
                       This model predicts whether an airport-airline-month combination is likely to be delay-heavy, using carrier, airport, month, and arriving flight volume.
                     </p>
                   </div>
@@ -889,7 +872,7 @@ export default function App() {
                         <Button
                           key={`${example.carrier}-${example.airport}-${example.month}`}
                           variant="outline"
-                          className={`h-auto justify-start rounded-xl p-3 text-left text-sm hover:bg-white ${exampleTone.badge}`}
+                          className={`h-full min-w-0 items-start justify-start rounded-xl p-4 text-left text-sm leading-snug whitespace-normal hover:bg-card ${exampleTone.badge}`}
                           onClick={() => {
                             setForm({
                               carrier: example.carrier,
@@ -900,13 +883,17 @@ export default function App() {
                             setPredictionError(null);
                           }}
                         >
-                          <span className="flex flex-col gap-1">
-                          <span className="font-semibold">{example.risk || "Example"} risk</span>
-                          <span>{example.carrier} @ {example.airport} in {monthName(example.month)}</span>
-                          <span className="text-blue-700">
-                            {delayText}
+                          <span className="flex min-w-0 flex-col gap-1.5">
+                            <span className="break-words text-base font-semibold leading-tight">
+                              {example.risk || "Example"} risk
+                            </span>
+                            <span className="break-words text-base leading-tight">
+                              {example.carrier} @ {example.airport} in {monthName(example.month)}
+                            </span>
+                            <span className="break-words text-sm leading-snug text-primary">
+                              {delayText}
+                            </span>
                           </span>
-                        </span>
                         </Button>
                       );
                     })}
@@ -918,9 +905,9 @@ export default function App() {
                       value={form.carrier}
                       onChange={(e) => handleFormChange("carrier", e.target.value)}
                       onBlur={() => handleBlur("carrier")}
-                      className={`rounded-xl ${fieldErrors.carrier ? "border-blue-950" : ""}`}
+                      className={`rounded-xl ${fieldErrors.carrier ? "border-primary ring-1 ring-primary/40" : ""}`}
                     />
-                    {fieldErrors.carrier && <p className="mt-1 text-xs text-blue-950">{fieldErrors.carrier}</p>}
+                    {fieldErrors.carrier && <p className="mt-1 text-xs text-foreground">{fieldErrors.carrier}</p>}
                   </div>
 
                   <div>
@@ -929,14 +916,14 @@ export default function App() {
                       value={form.airport}
                       onChange={(e) => handleFormChange("airport", e.target.value)}
                       onBlur={() => handleBlur("airport")}
-                      className={`rounded-xl ${fieldErrors.airport ? "border-blue-950" : ""}`}
+                      className={`rounded-xl ${fieldErrors.airport ? "border-primary ring-1 ring-primary/40" : ""}`}
                     />
-                    {fieldErrors.airport && <p className="mt-1 text-xs text-blue-950">{fieldErrors.airport}</p>}
+                    {fieldErrors.airport && <p className="mt-1 text-xs text-foreground">{fieldErrors.airport}</p>}
                   </div>
 
                   <div>
                     <Select value={form.month} onValueChange={(value) => handleFormChange("month", value)}>
-                      <SelectTrigger className={`rounded-xl ${fieldErrors.month ? "border-blue-950" : ""}`}>
+                      <SelectTrigger className={`rounded-xl ${fieldErrors.month ? "border-primary ring-1 ring-primary/40" : ""}`}>
                         <SelectValue placeholder="Select month" />
                       </SelectTrigger>
                       <SelectContent>
@@ -945,7 +932,7 @@ export default function App() {
                         ))}
                       </SelectContent>
                     </Select>
-                    {fieldErrors.month && <p className="mt-1 text-xs text-blue-950">{fieldErrors.month}</p>}
+                    {fieldErrors.month && <p className="mt-1 text-xs text-foreground">{fieldErrors.month}</p>}
                   </div>
 
                   <div className="flex gap-2">
@@ -968,9 +955,9 @@ export default function App() {
                   </div>
 
                   {predictionError && (
-                    <Alert className="rounded-xl border-sky-300 bg-white">
-                      <AlertTriangle className="h-4 w-4 text-blue-950" />
-                      <AlertDescription className="text-blue-950">{predictionError}</AlertDescription>
+                    <Alert className="rounded-xl border-border bg-card">
+                      <AlertTriangle className="h-4 w-4 text-foreground" />
+                      <AlertDescription className="text-foreground">{predictionError}</AlertDescription>
                     </Alert>
                   )}
 
@@ -981,7 +968,7 @@ export default function App() {
                           <p className={`text-xl font-semibold ${riskTheme.title}`}>
                             {displayRiskLabel}
                           </p>
-                          <p className="mt-1 text-sm text-blue-900">
+                          <p className="mt-1 text-sm text-muted-foreground">
                             {predictionResult.input.carrier} at {predictionResult.input.airport} in {monthName(predictionResult.input.month)}.
                           </p>
                         </div>
@@ -990,36 +977,36 @@ export default function App() {
                         </Badge>
                       </div>
 
-                      <Progress value={(finalRiskScore ?? predictionResult.delay_probability) * 100} className={`mt-4 h-3 bg-white ${riskTheme.progress}`} />
+                      <Progress value={(finalRiskScore ?? predictionResult.delay_probability) * 100} className={`mt-4 h-3 bg-card ${riskTheme.progress}`} />
 
                       {keyTakeaway && (
-                        <div className={`mt-4 rounded-xl border border-sky-200 p-4 ${riskTheme.accent}`}>
-                          <p className="text-sm font-semibold text-blue-950">Key Takeaway</p>
-                          <p className="mt-1 text-sm text-blue-900">{keyTakeaway}</p>
+                        <div className={`mt-4 rounded-xl border border-border p-4 ${riskTheme.accent}`}>
+                          <p className="text-sm font-semibold text-foreground">Key Takeaway</p>
+                          <p className="mt-1 text-sm text-muted-foreground">{keyTakeaway}</p>
                         </div>
                       )}
 
                       <div className="mt-4 grid grid-cols-1 gap-3 text-sm md:grid-cols-3">
-                        <div className="rounded-xl border border-sky-200 bg-white p-3">
-                          <p className="text-blue-700">Raw model</p>
-                          <p className="mt-1 font-semibold text-blue-950">
+                        <div className="rounded-xl border border-border bg-background/40 p-3">
+                          <p className="text-primary">Raw model</p>
+                          <p className="mt-1 font-semibold text-foreground">
                             {rawModel ? `${(rawModel.delay_probability * 100).toFixed(1)}%` : "n/a"}
                           </p>
-                          <p className="mt-1 text-sm text-blue-900">{rawModel?.prediction_label || "Model result unavailable"}</p>
+                          <p className="mt-1 text-sm text-muted-foreground">{rawModel?.prediction_label || "Model result unavailable"}</p>
                         </div>
-                        <div className="rounded-xl border border-sky-200 bg-white p-3">
-                          <p className="text-blue-700">2024 evidence</p>
-                          <p className="mt-1 font-semibold text-blue-950">
+                        <div className="rounded-xl border border-border bg-background/40 p-3">
+                          <p className="text-primary">2024 evidence</p>
+                          <p className="mt-1 font-semibold text-foreground">
                             {flight2024Summary ? contextualPercent(flight2024Summary.delay_rate) : "n/a"}
                           </p>
-                          <p className="mt-1 text-sm text-blue-900">{recentDelayComparison || flight2024Risk?.level || "Recent context unavailable"}</p>
+                          <p className="mt-1 text-sm text-muted-foreground">{recentDelayComparison || flight2024Risk?.level || "Recent context unavailable"}</p>
                         </div>
-                        <div className="rounded-xl border border-sky-200 bg-white p-3">
-                          <p className="text-blue-700">Historical weather</p>
-                          <p className="mt-1 font-semibold text-blue-950">
+                        <div className="rounded-xl border border-border bg-background/40 p-3">
+                          <p className="text-primary">Historical weather</p>
+                          <p className="mt-1 font-semibold text-foreground">
                             {historicalWeather?.available ? (historicalWeatherRisk?.level || "Reported") : "Unavailable"}
                           </p>
-                          <p className="mt-1 text-sm text-blue-900">
+                          <p className="mt-1 text-sm text-muted-foreground">
                             {historicalWeather?.available
                               ? `${formatPercentValue(historicalWeather.precipitation_rate)} precipitation observations`
                               : "No weather context available"}
@@ -1027,30 +1014,33 @@ export default function App() {
                         </div>
                       </div>
                       {riskContributionData.length > 0 && (
-                        <div className="mt-4 rounded-xl border border-sky-200 bg-white p-4">
+                        <div className="mt-4 rounded-xl border border-border bg-muted/40 p-4">
                           <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
                             <div>
-                              <p className="text-base font-semibold text-blue-950">What's driving this prediction</p>
-                              <p className="mt-1 text-sm text-blue-900">Shows how each factor contributed to final risk.</p>
+                              <p className="text-base font-semibold text-foreground">What's driving this prediction</p>
+                              <p className="mt-1 text-sm text-muted-foreground">Shows how each factor contributed to final risk.</p>
                             </div>
-                            <Badge variant="outline" className="w-fit rounded-full border-sky-200 bg-sky-50 text-blue-900">
+                            <Badge variant="outline" className="w-fit rounded-full border-border bg-muted text-muted-foreground">
                               month analysis
                             </Badge>
                           </div>
                           <div className="h-[210px]">
                             <ResponsiveContainer width="100%" height="100%">
                               <BarChart data={riskContributionData} layout="vertical" margin={{ left: 20, right: 20 }}>
-                                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                                <XAxis type="number" domain={[0, 50]} tickFormatter={(value) => `${value}%`} />
-                                <YAxis type="category" dataKey="name" width={116} tick={{ fontSize: 12 }} />
+                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={chartGridColor} />
+                                <XAxis type="number" domain={[0, 50]} tick={{ fill: chartTextColor }} tickFormatter={(value) => `${value}%`} />
+                                <YAxis type="category" dataKey="name" width={116} tick={{ fill: chartTextColor, fontSize: 12 }} />
                                 <Tooltip
+                                  contentStyle={chartTooltipStyle}
+                                  itemStyle={chartTooltipItemStyle}
+                                  labelStyle={chartTooltipLabelStyle}
                                   formatter={(value, name, props) => {
                                     if (name === "contribution") return [`${value}%`, "Final-score contribution"];
                                     return [`${props.payload.weight}%`, "Effective weight"];
                                   }}
                                 />
                                 <Bar dataKey="contribution" fill={riskTheme.bar} radius={[0, 8, 8, 0]}>
-                                  <LabelList dataKey="contribution" position="right" formatter={(value) => `${value}%`} />
+                                  <LabelList dataKey="contribution" position="right" fill={chartTextColor} formatter={(value) => `${value}%`} />
                                 </Bar>
                               </BarChart>
                             </ResponsiveContainer>
@@ -1059,11 +1049,11 @@ export default function App() {
                       )}
 
                       {flight2024Context && (
-                        <div className="mt-4 space-y-3 rounded-xl border border-sky-200 bg-white p-4">
+                        <div className="mt-4 space-y-3 rounded-xl border border-border bg-muted/40 p-4">
                           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                             <div>
-                              <p className="text-base font-semibold text-blue-950">Recent (2024) flight behavior</p>
-                              <p className="mt-1 text-sm text-blue-900">Recent flights show whether this route has been behaving better or worse than its longer-term pattern.</p>
+                              <p className="text-base font-semibold text-foreground">Recent (2024) flight behavior</p>
+                              <p className="mt-1 text-sm text-muted-foreground">Recent flights show whether this route has been behaving better or worse than its longer-term pattern.</p>
                             </div>
                             <Badge variant="outline" className={`w-fit rounded-full border ${weatherRiskStyles[flight2024Risk?.level] || weatherRiskStyles.Unknown}`}>
                               {flight2024Risk?.level || "Unknown"}
@@ -1073,35 +1063,35 @@ export default function App() {
                           {flight2024Context.available && flight2024Summary ? (
                             <>
                               <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
-                                <div className="rounded-xl bg-sky-50 p-3">
-                                  <p className="text-blue-700">Flights</p>
-                                  <p className="mt-1 text-lg font-semibold text-blue-950">
+                                <div className="rounded-xl bg-background/40 p-3">
+                                  <p className="text-primary">Flights</p>
+                                  <p className="mt-1 text-lg font-semibold text-foreground">
                                     {formatCount(flight2024Summary.flights)}
                                   </p>
                                 </div>
-                                <div className="rounded-xl bg-sky-50 p-3">
-                                  <p className="text-blue-700">Delay rate</p>
-                                  <p className="mt-1 text-lg font-semibold text-blue-950">
+                                <div className="rounded-xl bg-background/40 p-3">
+                                  <p className="text-primary">Delay rate</p>
+                                  <p className="mt-1 text-lg font-semibold text-foreground">
                                     {contextualPercent(flight2024Summary.delay_rate)}
                                   </p>
-                                  {recentDelayComparison && <p className="mt-1 text-sm text-blue-900">{recentDelayComparison}</p>}
+                                  {recentDelayComparison && <p className="mt-1 text-sm text-muted-foreground">{recentDelayComparison}</p>}
                                 </div>
-                                <div className="rounded-xl bg-sky-50 p-3">
-                                  <p className="text-blue-700">Cancelled</p>
-                                  <p className="mt-1 text-lg font-semibold text-blue-950">
+                                <div className="rounded-xl bg-background/40 p-3">
+                                  <p className="text-primary">Cancelled</p>
+                                  <p className="mt-1 text-lg font-semibold text-foreground">
                                     {contextualPercent(flight2024Summary.cancellation_rate, "flights")}
                                   </p>
                                 </div>
-                                <div className="rounded-xl bg-sky-50 p-3">
-                                  <p className="text-blue-700">Avg delay</p>
-                                  <p className="mt-1 text-lg font-semibold text-blue-950">
+                                <div className="rounded-xl bg-background/40 p-3">
+                                  <p className="text-primary">Avg delay</p>
+                                  <p className="mt-1 text-lg font-semibold text-foreground">
                                     {formatDelayMinutes(flight2024Summary.avg_arrival_delay_minutes)}
                                   </p>
                                 </div>
                               </div>
 
                               {flight2024Risk?.drivers?.length > 0 && (
-                                <ul className="space-y-1 text-sm text-blue-900">
+                                <ul className="space-y-1 text-sm text-muted-foreground">
                                   {flight2024Risk.drivers.slice(0, 2).map((driver) => (
                                     <li key={driver}>{driver}</li>
                                   ))}
@@ -1109,7 +1099,7 @@ export default function App() {
                               )}
                             </>
                           ) : (
-                            <p className="text-sm text-blue-900">
+                            <p className="text-sm text-muted-foreground">
                               {flight2024Context.message || "No 2024 flight evidence is available for this airport-airline-month combination."}
                             </p>
                           )}
@@ -1117,11 +1107,11 @@ export default function App() {
                       )}
 
                       {(historicalWeather || historicalWeatherRisk) && (
-                        <div className="mt-4 space-y-3 rounded-xl border border-sky-200 bg-white p-4">
+                        <div className="mt-4 space-y-3 rounded-xl border border-border bg-muted/40 p-4">
                           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                             <div>
-                              <p className="text-base font-semibold text-blue-950">Historical weather pattern</p>
-                              <p className="mt-1 text-sm text-blue-900">
+                              <p className="text-base font-semibold text-foreground">Historical weather pattern</p>
+                              <p className="mt-1 text-sm text-muted-foreground">
                                 {historicalWeather?.available
                                   ? `${monthName(predictionResult.input.month)} ${historicalWeather.reference_year} observations at ${historicalWeather.station}.`
                                   : historicalWeather?.message || "Historical airport weather is unavailable for this airport and month."}
@@ -1135,34 +1125,34 @@ export default function App() {
                           {historicalWeather?.available ? (
                             <>
                               <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
-                                <div className="rounded-xl bg-sky-50 p-3">
-                                  <p className="text-blue-700">Observations</p>
-                                  <p className="mt-1 text-lg font-semibold text-blue-950">
+                                <div className="rounded-xl bg-background/40 p-3">
+                                  <p className="text-primary">Observations</p>
+                                  <p className="mt-1 text-lg font-semibold text-foreground">
                                     {formatCount(historicalWeather.observations)}
                                   </p>
                                 </div>
-                                <div className="rounded-xl bg-sky-50 p-3">
-                                  <p className="text-blue-700">Low visibility</p>
-                                  <p className="mt-1 text-lg font-semibold text-blue-950">
+                                <div className="rounded-xl bg-background/40 p-3">
+                                  <p className="text-primary">Low visibility</p>
+                                  <p className="mt-1 text-lg font-semibold text-foreground">
                                     {contextualPercent(historicalWeather.low_visibility_rate, "observations")}
                                   </p>
                                 </div>
-                                <div className="rounded-xl bg-sky-50 p-3">
-                                  <p className="text-blue-700">Gusty wind</p>
-                                  <p className="mt-1 text-lg font-semibold text-blue-950">
+                                <div className="rounded-xl bg-background/40 p-3">
+                                  <p className="text-primary">Gusty wind</p>
+                                  <p className="mt-1 text-lg font-semibold text-foreground">
                                     {contextualPercent(historicalWeather.gusty_wind_rate, "observations")}
                                   </p>
                                 </div>
-                                <div className="rounded-xl bg-sky-50 p-3">
-                                  <p className="text-blue-700">Precipitation</p>
-                                  <p className="mt-1 text-lg font-semibold text-blue-950">
+                                <div className="rounded-xl bg-background/40 p-3">
+                                  <p className="text-primary">Precipitation</p>
+                                  <p className="mt-1 text-lg font-semibold text-foreground">
                                     {contextualPercent(historicalWeather.precipitation_rate, "observations")}
                                   </p>
                                 </div>
                               </div>
 
                               {historicalWeatherRisk?.drivers?.length > 0 && (
-                                <ul className="space-y-1 text-sm text-blue-900">
+                                <ul className="space-y-1 text-sm text-muted-foreground">
                                   {historicalWeatherRisk.drivers.slice(0, 2).map((driver) => (
                                     <li key={driver}>{driver}</li>
                                   ))}
@@ -1170,7 +1160,7 @@ export default function App() {
                               )}
                             </>
                           ) : (
-                            <p className="text-sm text-blue-900">
+                            <p className="text-sm text-muted-foreground">
                               {historicalWeatherRisk?.drivers?.[0] || "Historical airport weather is unavailable."}
                             </p>
                           )}
@@ -1178,11 +1168,11 @@ export default function App() {
                       )}
 
                       {currentAnalysis && (
-                        <div className="mt-4 space-y-4 rounded-xl border border-sky-200 bg-white p-4">
+                        <div className="mt-4 space-y-4 rounded-xl border border-border bg-muted/40 p-4">
                           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                             <div>
-                              <p className="text-base font-semibold text-blue-950">Long-term delay trends</p>
-                              <p className="mt-1 text-sm text-blue-900">This compares the selected airline and airport against the typical month pattern.</p>
+                              <p className="text-base font-semibold text-foreground">Long-term delay trends</p>
+                              <p className="mt-1 text-sm text-muted-foreground">This compares the selected airline and airport against the typical month pattern.</p>
                             </div>
                             <Badge variant="outline" className={`w-fit rounded-full border ${statusStyles[currentAnalysis.risk_label] || statusStyles.Moderate}`}>
                               {currentAnalysis.risk_label}
@@ -1190,28 +1180,28 @@ export default function App() {
                           </div>
 
                           <div className="grid grid-cols-2 gap-3 text-sm">
-                            <div className="rounded-xl bg-sky-50 p-3">
-                              <p className="text-blue-700">Historical delay rate</p>
-                              <p className="mt-1 text-xl font-semibold text-blue-950">
+                            <div className="rounded-xl bg-background/40 p-3">
+                              <p className="text-primary">Historical delay rate</p>
+                              <p className="mt-1 text-xl font-semibold text-foreground">
                                 {contextualPercent(historicalContext?.delay_rate)}
                               </p>
-                              {historicalDelayComparison && <p className="mt-1 text-sm text-blue-900">{historicalDelayComparison}</p>}
+                              {historicalDelayComparison && <p className="mt-1 text-sm text-muted-foreground">{historicalDelayComparison}</p>}
                             </div>
-                            <div className="rounded-xl bg-sky-50 p-3">
-                              <p className="text-blue-700">Month baseline</p>
-                              <p className="mt-1 text-xl font-semibold text-blue-950">
+                            <div className="rounded-xl bg-background/40 p-3">
+                              <p className="text-primary">Month baseline</p>
+                              <p className="mt-1 text-xl font-semibold text-foreground">
                                 {contextualPercent(monthBaseline?.delay_rate)}
                               </p>
                             </div>
-                            <div className="rounded-xl bg-sky-50 p-3">
-                              <p className="text-blue-700">Exact matches</p>
-                              <p className="mt-1 text-xl font-semibold text-blue-950">
+                            <div className="rounded-xl bg-background/40 p-3">
+                              <p className="text-primary">Exact matches</p>
+                              <p className="mt-1 text-xl font-semibold text-foreground">
                                 {currentAnalysis.availability.exact_matches}
                               </p>
                             </div>
-                            <div className="rounded-xl bg-sky-50 p-3">
-                              <p className="text-blue-700">Average delay minutes</p>
-                              <p className="mt-1 text-xl font-semibold text-blue-950">
+                            <div className="rounded-xl bg-background/40 p-3">
+                              <p className="text-primary">Average delay minutes</p>
+                              <p className="mt-1 text-xl font-semibold text-foreground">
                                 {formatDelayMinutes(historicalContext?.avg_delay_minutes_per_delayed_arrival)}
                               </p>
                             </div>
@@ -1219,11 +1209,11 @@ export default function App() {
 
                           {causeMix.length > 0 && (
                             <div className="space-y-3">
-                              <p className="text-sm font-medium text-blue-950">
+                              <p className="text-sm font-medium text-foreground">
                                 Primary cause: {prettyCauseName(primaryCause.name)} ({primaryCause.share}%)
                               </p>
                               {secondaryCause && (
-                                <p className="text-sm text-blue-900">
+                                <p className="text-sm text-muted-foreground">
                                   Secondary: {prettyCauseName(secondaryCause.name)} ({secondaryCause.share}%)
                                 </p>
                               )}
@@ -1233,12 +1223,12 @@ export default function App() {
                                 .slice(0, 4)
                                 .map((item) => (
                                   <div key={item.name}>
-                                    <div className="mb-1 flex justify-between text-xs text-blue-900">
+                                    <div className="mb-1 flex justify-between text-xs text-muted-foreground">
                                       <span>{item.name}</span>
                                       <span>{item.share}%</span>
                                     </div>
-                                    <div className="h-1.5 w-full rounded-full bg-sky-200">
-                                      <div className="h-1.5 rounded-full bg-blue-950" style={{ width: `${item.share}%` }} />
+                                    <div className="h-1.5 w-full rounded-full bg-border">
+                                      <div className="h-1.5 rounded-full bg-primary" style={{ width: `${item.share}%` }} />
                                     </div>
                                   </div>
                                 ))}
@@ -1248,11 +1238,11 @@ export default function App() {
                       )}
 
                       {(liveWeather || weatherRisk) && (
-                        <div className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4">
+                        <div className="mt-4 rounded-xl border border-border bg-muted/40 p-4">
                           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
-                              <p className="text-base font-semibold text-blue-950">Live current conditions</p>
-                              <p className="mt-1 text-sm text-blue-900">
+                              <p className="text-base font-semibold text-foreground">Live current conditions</p>
+                              <p className="mt-1 text-sm text-muted-foreground">
                                 This is current weather, not for the selected month, and is not used in the {monthName(predictionResult.input.month)} score.
                               </p>
                             </div>
@@ -1262,10 +1252,10 @@ export default function App() {
                               </Badge>
                               {liveWeather?.available && (
                                 <>
-                                  <Badge variant="outline" className="rounded-full border-sky-200 bg-white text-blue-900">
+                                  <Badge variant="outline" className="rounded-full border-border bg-card text-muted-foreground">
                                     {liveWeather.visibility_miles ?? "n/a"} mi
                                   </Badge>
-                                  <Badge variant="outline" className="rounded-full border-sky-200 bg-white text-blue-900">
+                                  <Badge variant="outline" className="rounded-full border-border bg-card text-muted-foreground">
                                     {liveWeather.wind_speed_kt ?? "n/a"} kt wind
                                   </Badge>
                                 </>
@@ -1273,7 +1263,7 @@ export default function App() {
                             </div>
                           </div>
                           {!liveWeather?.available && (
-                            <p className="mt-3 text-sm text-blue-900">
+                            <p className="mt-3 text-sm text-muted-foreground">
                               {liveWeather?.message || "Live weather is not currently available for this airport."}
                             </p>
                           )}
@@ -1283,26 +1273,26 @@ export default function App() {
                   )}
 
                   {predictionResult && comparisonBaseline && (
-                    <div className="rounded-xl border border-sky-200 bg-white p-4">
-                      <p className="text-sm font-medium text-blue-950">Scenario Comparison</p>
-                      <p className="mt-1 text-sm text-blue-900">
+                    <div className="rounded-xl border border-border bg-muted/40 p-4">
+                      <p className="text-sm font-medium text-foreground">Scenario Comparison</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
                         Compared with your previous prediction, delay risk
-                        <span className={`ml-1 font-medium ${probabilityDelta >= 0 ? "text-blue-950" : "text-sky-600"}`}>
+                        <span className={`ml-1 font-medium ${probabilityDelta >= 0 ? "text-foreground" : "text-cyan-300"}`}>
                           {probabilityDelta >= 0 ? " increased " : " decreased "}
                           by {Math.abs(probabilityDelta).toFixed(1)} percentage points
                         </span>
                         .
                       </p>
                       <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-                        <div className="rounded-xl bg-sky-50 p-3">
-                          <p className="text-blue-700">Previous</p>
+                        <div className="rounded-xl bg-background/40 p-3">
+                          <p className="text-primary">Previous</p>
                           <p className="mt-1 font-medium">{comparisonBaseline.input.carrier} @ {comparisonBaseline.input.airport}</p>
-                          <p className="text-blue-900">{(comparisonBaseline.delay_probability * 100).toFixed(1)}% risk</p>
+                          <p className="text-muted-foreground">{(comparisonBaseline.delay_probability * 100).toFixed(1)}% risk</p>
                         </div>
-                        <div className="rounded-xl bg-sky-50 p-3">
-                          <p className="text-blue-700">Current</p>
+                        <div className="rounded-xl bg-background/40 p-3">
+                          <p className="text-primary">Current</p>
                           <p className="mt-1 font-medium">{predictionResult.input.carrier} @ {predictionResult.input.airport}</p>
-                          <p className="text-blue-900">{(predictionResult.delay_probability * 100).toFixed(1)}% risk</p>
+                          <p className="text-muted-foreground">{(predictionResult.delay_probability * 100).toFixed(1)}% risk</p>
                         </div>
                       </div>
                     </div>
@@ -1319,23 +1309,26 @@ export default function App() {
                   {data.forecastData.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={data.forecastData} layout="vertical" margin={{ left: 28, right: 24 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#bae6fd" />
-                        <XAxis type="number" tick={{ fill: "#0f2a5f" }} tickFormatter={(value) => `${value}%`} />
+                        <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
+                        <XAxis type="number" tick={{ fill: chartTextColor }} tickFormatter={(value) => `${value}%`} />
                         <YAxis
                           type="category"
                           dataKey="carrierName"
                           width={150}
                           interval={0}
-                          tick={{ fill: "#0f2a5f", fontSize: 12 }}
+                          tick={{ fill: chartTextColor, fontSize: 12 }}
                         />
                         <Tooltip
+                          contentStyle={chartTooltipStyle}
+                          itemStyle={chartTooltipItemStyle}
+                          labelStyle={chartTooltipLabelStyle}
                           formatter={(value) => [`${value}%`, "Airline delay rate"]}
                           labelFormatter={(label, items) => {
                             const carrier = items?.[0]?.payload?.carrier;
                             return carrier ? `${label} (${carrier})` : label;
                           }}
                         />
-                        <Bar dataKey="actual" fill="#0f2a5f" radius={[8, 8, 0, 0]} name="Carrier delay rate" />
+                        <Bar dataKey="actual" fill="#34d399" radius={[8, 8, 0, 0]} name="Carrier delay rate" />
                       </BarChart>
                     </ResponsiveContainer>
                   ) : (
@@ -1360,7 +1353,7 @@ export default function App() {
                     </div>
                     <div className="grid w-full gap-3 md:grid-cols-2 xl:grid-cols-3 lg:w-auto">
                       <div className="relative min-w-[220px]">
-                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-sky-500" />
+                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary" />
                         <Input
                           value={search}
                           onChange={(e) => setSearch(e.target.value)}
@@ -1393,14 +1386,14 @@ export default function App() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="mb-4 flex items-center gap-2 text-sm text-blue-700">
+                  <div className="mb-4 flex items-center gap-2 text-sm text-primary">
                     <Filter className="h-4 w-4" /> Showing {filteredFlights.length} saved records
                   </div>
                   {filteredFlights.length > 0 ? (
                     <div className="overflow-x-auto">
                       <table className="w-full min-w-[820px] border-separate border-spacing-y-3">
                         <thead>
-                          <tr className="text-left text-sm text-blue-700">
+                          <tr className="text-left text-sm text-primary">
                             <th className="px-4">Record</th>
                             <th className="px-4">Scenario</th>
                             <th className="px-4">Carrier</th>
@@ -1412,7 +1405,7 @@ export default function App() {
                         </thead>
                         <tbody>
                           {filteredFlights.map((flight) => (
-                            <tr key={flight.id} className="bg-sky-50 text-sm text-blue-950">
+                            <tr key={flight.id} className="bg-muted text-sm text-foreground">
                               <td className="rounded-l-2xl px-4 py-4 font-semibold">{flight.id}</td>
                               <td className="px-4 py-4">{flight.route}</td>
                               <td className="px-4 py-4">{flight.airline}</td>
@@ -1447,53 +1440,6 @@ export default function App() {
                 </CardContent>
               </Card>
 
-              <Card className="rounded-2xl border-none shadow-sm">
-                <CardHeader>
-                  <CardTitle>Raw Prediction API History</CardTitle>
-                  <CardDescription>Direct database records returned by the backend predictions endpoint</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {history.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="w-full min-w-[720px] border-separate border-spacing-y-2">
-                        <thead>
-                          <tr className="text-left text-sm text-blue-700">
-                            <th className="px-4">Carrier</th>
-                            <th className="px-4">Airport</th>
-                            <th className="px-4">Month</th>
-                            <th className="px-4">Result</th>
-                            <th className="px-4">Probability</th>
-                            <th className="px-4">Time</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {history.map((p) => (
-                            <tr key={p.id} className="bg-sky-50 text-sm text-blue-950">
-                              <td className="rounded-l-xl px-4 py-3 font-medium">{p.carrier}</td>
-                              <td className="px-4 py-3">{p.airport}</td>
-                              <td className="px-4 py-3">{MONTH_LABELS[p.month] || p.month}</td>
-                              <td className="px-4 py-3">
-                                <Badge variant="outline" className={`rounded-full border ${statusStyles[p.prediction_label] || statusStyles.Moderate}`}>
-                                  {p.prediction_label}
-                                </Badge>
-                              </td>
-                              <td className="px-4 py-3">{(p.delay_probability * 100).toFixed(1)}%</td>
-                              <td className="rounded-r-xl px-4 py-3 text-sky-500">
-                                {new Date(`${p.created_at}`).toLocaleString()}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <EmptyPanel
-                      title="No prediction history yet"
-                      description="Use the form above to save your first prediction record."
-                    />
-                  )}
-                </CardContent>
-              </Card>
             </div>
           </TabsContent>
         </Tabs>
