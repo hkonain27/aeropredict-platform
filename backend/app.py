@@ -2,6 +2,7 @@ import os
 from flask import Flask, jsonify
 from flask_cors import CORS
 from sqlalchemy import inspect, text
+from sqlalchemy.exc import OperationalError
 from extensions import db
 from routes.health import health_bp
 from routes.predict import predict_bp
@@ -39,8 +40,13 @@ def create_app(test_config=None):
         if "prediction" in inspector.get_table_names():
             columns = {column["name"] for column in inspector.get_columns("prediction")}
             if "final_risk_score" not in columns:
-                db.session.execute(text("ALTER TABLE prediction ADD COLUMN final_risk_score FLOAT"))
-                db.session.commit()
+                try:
+                    db.session.execute(text("ALTER TABLE prediction ADD COLUMN final_risk_score FLOAT"))
+                    db.session.commit()
+                except OperationalError as exc:
+                    db.session.rollback()
+                    if "duplicate column name" not in str(exc).lower():
+                        raise
 
     return app
 
