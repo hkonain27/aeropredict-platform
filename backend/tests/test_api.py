@@ -138,6 +138,9 @@ class ApiRoutesTestCase(unittest.TestCase):
         self.assertEqual(history_response.status_code, 200)
         self.assertEqual(len(history_body["predictions"]), 1)
         self.assertEqual(history_body["predictions"][0]["prediction_label"], body["final_risk_label"])
+        self.assertEqual(history_body["predictions"][0]["delay_probability"], body["final_risk_score"])
+        self.assertEqual(history_body["predictions"][0]["model_delay_probability"], body["delay_probability"])
+        self.assertEqual(history_body["predictions"][0]["final_risk_score"], body["final_risk_score"])
 
     def test_predict_route_keeps_live_weather_display_only(self):
         with patch(
@@ -310,6 +313,7 @@ class ApiRoutesTestCase(unittest.TestCase):
         self.assertIn("causeBreakdown", body)
         self.assertIn("forecastData", body)
         self.assertIn("recentFlights", body)
+        self.assertEqual(body["recentFlights"][0]["delayProbability"], round(body["recentFlights"][0]["delayProbability"], 1))
 
     def test_delay_risk_lookup_returns_historical_analysis_without_saving(self):
         response = self.client.post(

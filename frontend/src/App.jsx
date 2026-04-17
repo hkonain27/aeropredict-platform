@@ -506,8 +506,9 @@ export default function App() {
     ];
   }, [data.suggestionScenarios, highestDelayMonths]);
 
+  const getDisplayedRiskScore = (result) => result?.final_risk_score ?? result?.delay_probability;
   const probabilityDelta = predictionResult && comparisonBaseline
-    ? (predictionResult.delay_probability - comparisonBaseline.delay_probability) * 100
+    ? (getDisplayedRiskScore(predictionResult) - getDisplayedRiskScore(comparisonBaseline)) * 100
     : null;
   const currentAnalysis = predictionResult?.analysis;
   const historicalContext = currentAnalysis?.historical?.context_used;
@@ -1287,12 +1288,12 @@ export default function App() {
                         <div className="rounded-xl bg-background/40 p-3">
                           <p className="text-primary">Previous</p>
                           <p className="mt-1 font-medium">{comparisonBaseline.input.carrier} @ {comparisonBaseline.input.airport}</p>
-                          <p className="text-muted-foreground">{(comparisonBaseline.delay_probability * 100).toFixed(1)}% risk</p>
+                          <p className="text-muted-foreground">{(getDisplayedRiskScore(comparisonBaseline) * 100).toFixed(1)}% risk</p>
                         </div>
                         <div className="rounded-xl bg-background/40 p-3">
                           <p className="text-primary">Current</p>
                           <p className="mt-1 font-medium">{predictionResult.input.carrier} @ {predictionResult.input.airport}</p>
-                          <p className="text-muted-foreground">{(predictionResult.delay_probability * 100).toFixed(1)}% risk</p>
+                          <p className="text-muted-foreground">{(getDisplayedRiskScore(predictionResult) * 100).toFixed(1)}% risk</p>
                         </div>
                       </div>
                     </div>
