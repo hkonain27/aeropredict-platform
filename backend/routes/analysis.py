@@ -47,7 +47,7 @@ def _validate_payload(data):
     return parsed, None
 
 
-@analysis_bp.route("/api/delay-risk", methods=["GET", "POST"])
+@analysis_bp.route("/delay-risk", methods=["GET", "POST"])
 def delay_risk_lookup():
     parsed, error = _validate_payload(_read_payload())
     if error:

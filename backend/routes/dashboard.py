@@ -63,7 +63,7 @@ def _build_suggestion_scenarios():
 
     return suggestions
 
-@dashboard_bp.route("/api/dashboard-data", methods=["GET"])
+@dashboard_bp.route("/dashboard-data", methods=["GET"])
 def get_dashboard_data():
     with open(DATA_PATH, "r", encoding="utf-8") as f:
         data = json.load(f)

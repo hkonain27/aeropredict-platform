@@ -19,7 +19,7 @@ def _get_user_from_token():
     return User.query.filter_by(auth_token=token).first()
 
 
-@auth_bp.route("/api/register", methods=["POST"])
+@auth_bp.route("/register", methods=["POST"])
 def register():
     data = request.get_json() or {}
     email = str(data.get("email", "")).strip().lower()
@@ -42,7 +42,7 @@ def register():
     return jsonify({"status": "success", "message": "User registered.", "token": user.auth_token, "profile": user.to_dict()})
 
 
-@auth_bp.route("/api/login", methods=["POST"])
+@auth_bp.route("/login", methods=["POST"])
 def login():
     data = request.get_json() or {}
     email = str(data.get("email", "")).strip().lower()
@@ -62,7 +62,7 @@ def login():
     return jsonify({"status": "success", "token": user.auth_token, "profile": user.to_dict()})
 
 
-@auth_bp.route("/api/profile", methods=["GET"])
+@auth_bp.route("/profile", methods=["GET"])
 def profile():
     user = _get_user_from_token()
     if not user:
@@ -70,7 +70,7 @@ def profile():
     return jsonify({"status": "success", "profile": user.to_dict()})
 
 
-@auth_bp.route("/api/logout", methods=["POST"])
+@auth_bp.route("/logout", methods=["POST"])
 def logout():
     user = _get_user_from_token()
     if not user:

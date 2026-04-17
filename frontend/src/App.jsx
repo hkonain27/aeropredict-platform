@@ -36,7 +36,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
+const API_BASE = "/api";
 const MotionDiv = motion.div;
 const pieColors = ["#7dd3fc", "#818cf8", "#fde047", "#fb7185", "#34d399"];
 const chartTextColor = "#cbd5e1";
@@ -285,7 +285,7 @@ export default function App() {
   const fetchDashboardData = async () => {
     try {
       setDashboardError(null);
-      const response = await fetch(`${API_BASE}/api/dashboard-data`);
+      const response = await fetch(`${API_BASE}/dashboard-data`);
       if (!response.ok) throw new Error("Failed to load dashboard data");
       const json = await response.json();
       setData(normalizeDashboardData(json));
@@ -315,7 +315,7 @@ export default function App() {
   const loadProfile = async () => {
     if (!authToken) return;
     try {
-      const response = await fetch(`${API_BASE}/api/profile`, {
+      const response = await fetch(`${API_BASE}/profile`, {
         headers: authHeaders(),
       });
       if (response.status === 401) {
@@ -345,7 +345,7 @@ export default function App() {
       return;
     }
 
-    const endpoint = authMode === "login" ? "/api/login" : "/api/register";
+    const endpoint = authMode === "login" ? "/login" : "/register";
     const payload = {
       email: authForm.email.trim(),
       password: authForm.password,
@@ -379,7 +379,7 @@ export default function App() {
 
   const handleLogout = async () => {
     try {
-      await fetch(`${API_BASE}/api/logout`, {
+      await fetch(`${API_BASE}/logout`, {
         method: "POST",
         headers: { ...authHeaders(), "Content-Type": "application/json" },
       });
