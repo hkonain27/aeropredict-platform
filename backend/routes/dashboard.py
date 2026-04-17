@@ -148,7 +148,7 @@ def get_dashboard_data():
             "airport": record.airport,
             "airline": record.carrier,
             "day": f"Month {record.month}",
-            "delayProbability": round(record.delay_probability * 100, 1),
+            "delayProbability": round((record.final_risk_score if record.final_risk_score is not None else record.delay_probability) * 100, 1),
             "confidence": round(max(record.delay_probability, 1 - record.delay_probability) * 100),
             "status": record.prediction_label,
             "createdAt": record.created_at.isoformat() if record.created_at else None,

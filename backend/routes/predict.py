@@ -238,6 +238,7 @@ def predict():
         prediction=prediction,
         prediction_label=final_risk_label,
         delay_probability=delay_probability,
+        final_risk_score=final_risk_score,
     )
     db.session.add(record)
     db.session.commit()
