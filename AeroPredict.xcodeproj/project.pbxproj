@@ -14,6 +14,7 @@
 		D0431FEB2F99784A008C1402 /* Exceptions for "AeroPredict" folder in "AeroPredict" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Controllers/HomeViewController.swift,
 				Info.plist,
 			);
 			target = D0431FD82F997849008C1402 /* AeroPredict */;
