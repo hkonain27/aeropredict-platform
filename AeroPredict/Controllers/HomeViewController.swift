@@ -64,6 +64,7 @@ class HomeViewController: UIViewController, UITableViewDataSource, UITableViewDe
         if segue.identifier == "showPrediction",
            let destination = segue.destination as? PredictionViewController {
             destination.prediction = currentPrediction
+            destination.delegate = self
         }
     }
 
@@ -83,7 +84,12 @@ class HomeViewController: UIViewController, UITableViewDataSource, UITableViewDe
 
         return cell
     }
-
+    func didSaveFlight(_ flight: FlightPrediction) {
+        if !recentSearches.contains(where: { $0.flightNumber == flight.flightNumber }) {
+            recentSearches.insert(flight, at: 0)
+        }
+        tableView.reloadData()
+    }
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         currentPrediction = recentSearches[indexPath.row]
         performSegue(withIdentifier: "showPrediction", sender: self)

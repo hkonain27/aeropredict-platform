@@ -6,27 +6,25 @@
 //
 import Foundation
 
-final class StorageManager {
+class StorageManager {
     static let shared = StorageManager()
+    private let key = "savedFlights"
+
     private init() {}
 
-    private let savedFlightsKey = "savedFlights"
-
-    func loadFlights() -> [FlightPrediction] {
-        guard let data = UserDefaults.standard.data(forKey: savedFlightsKey) else { return [] }
-        do {
-            return try JSONDecoder().decode([FlightPrediction].self, from: data)
-        } catch {
-            return []
+    func saveFlights(_ flights: [FlightPrediction]) {
+        let encoder = JSONEncoder()
+        if let data = try? encoder.encode(flights) {
+            UserDefaults.standard.set(data, forKey: key)
         }
     }
 
-    func saveFlights(_ flights: [FlightPrediction]) {
-        do {
-            let data = try JSONEncoder().encode(flights)
-            UserDefaults.standard.set(data, forKey: savedFlightsKey)
-        } catch {
-            print("Failed to save flights: \(error)")
+    func loadFlights() -> [FlightPrediction] {
+        guard let data = UserDefaults.standard.data(forKey: key) else {
+            return []
         }
+
+        let decoder = JSONDecoder()
+        return (try? decoder.decode([FlightPrediction].self, from: data)) ?? []
     }
 }

@@ -12,17 +12,17 @@
   //
 import Foundation
 
-  enum RiskLevel: String, Codable {
-      case low = "Low"
-      case medium = "Medium"
-      case high = "High"
-  }
+enum RiskLevel: String, Codable {
+    case low = "Low"
+    case medium = "Medium"
+    case high = "High"
+}
 
-  struct FlightPrediction: Codable, Equatable {
-      let flightNumber: String
-      let origin: String
-      let destination: String
-      let delayProbability: Int
-      let riskLevel: RiskLevel
-      let factors: [String]
-  }
+struct FlightPrediction: Codable, Equatable {
+    let flightNumber: String
+    let origin: String
+    let destination: String
+    let delayProbability: Int
+    let riskLevel: RiskLevel
+    let factors: [String]
+}

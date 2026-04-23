@@ -15,52 +15,48 @@ class SavedFlightsViewController: UIViewController, UITableViewDataSource, UITab
 
     @IBOutlet weak var tableView: UITableView!
     @IBOutlet weak var emptyLabel: UILabel!
-
-    var savedFlights: [FlightPrediction] = []
-
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        title = "Saved Flights"
-        tableView.dataSource = self
-        tableView.delegate = self
-
-        savedFlights = StorageManager.shared.loadFlights()
-        emptyLabel.isHidden = !savedFlights.isEmpty
-        tableView.reloadData()
-    }
-
     override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        savedFlights = StorageManager.shared.loadFlights()
-        emptyLabel.isHidden = !savedFlights.isEmpty
-        tableView.reloadData()
-    }
+            super.viewWillAppear(animated)
+            loadDashboard()
+        }
 
-    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return savedFlights.count
-    }
+        private func loadDashboard() {
+            let flights = StorageManager.shared.loadFlights()
 
-    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "SavedCell")
-            ?? UITableViewCell(style: .subtitle, reuseIdentifier: "SavedCell")
+            if flights.isEmpty {
+                trendsLabel.text = """
+                Delay Trends
 
-        let flight = savedFlights[indexPath.row]
-        cell.textLabel?.text = "\(flight.flightNumber)  \(flight.origin) → \(flight.destination)"
-        cell.detailTextLabel?.text = "Delay: \(flight.delayProbability)%  •  Risk: \(flight.riskLevel.rawValue)"
-        cell.selectionStyle = .none
-        return cell
-    }
+                No saved flight data yet.
+                Search and save flights to view trends.
+                """
 
-    func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
-        if editingStyle == .delete {
-            savedFlights.remove(at: indexPath.row)
-            tableView.deleteRows(at: [indexPath], with: .automatic)
-            emptyLabel.isHidden = !savedFlights.isEmpty
-            persistFlights()
+                airlinesLabel.text = """
+                Risk Overview
+
+                No saved flights available.
+                """
+                return
+            }
+
+            let high = flights.filter { $0.riskLevel == .high }.count
+            let medium = flights.filter { $0.riskLevel == .medium }.count
+            let low = flights.filter { $0.riskLevel == .low }.count
+            let avgDelay = flights.map { $0.delayProbability }.reduce(0, +) / flights.count
+
+            trendsLabel.text = """
+            Delay Trends
+
+            Saved Flights: \(flights.count)
+            Average Delay Risk: \(avgDelay)%
+            """
+
+            airlinesLabel.text = """
+            Risk Overview
+
+            High Risk: \(high)
+            Medium Risk: \(medium)
+            Low Risk: \(low)
+            """
         }
     }
-
-    private func persistFlights() {
-        StorageManager.shared.saveFlights(savedFlights)
-    }
-}
