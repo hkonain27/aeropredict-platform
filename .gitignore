@@ -12,3 +12,11 @@ Thumbs.db
 backend/predictions.db
 frontend/dist/
 frontend/.vite/
+backend/flight_store.db*
+node_modules/
+artifacts/
+var/
+.pytest_cache/
+data/training/
+data/weather/
+*.egg-info/

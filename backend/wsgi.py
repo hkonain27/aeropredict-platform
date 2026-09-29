@@ -1,9 +1,4 @@
-import sys
-from pathlib import Path
+"""WSGI entry point: gunicorn backend.wsgi:app."""
+from backend.app import app
 
-
-BACKEND_DIR = Path(__file__).resolve().parent
-if str(BACKEND_DIR) not in sys.path:
-    sys.path.insert(0, str(BACKEND_DIR))
-
-from app import app  # noqa: E402
+__all__ = ['app']

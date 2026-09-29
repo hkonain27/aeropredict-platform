@@ -1,0 +1,12 @@
+*
+!requirements.txt
+!requirements.lock.txt
+!aeropredict/
+!aeropredict/*.py
+!backend/
+!backend/__init__.py
+!backend/app.py
+!backend/wsgi.py
+!data_prep.py
+!train_model.py
+!predict_live.py

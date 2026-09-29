@@ -1,0 +1,23 @@
+services:
+  api:
+    build: .
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      MODEL_ARTIFACT_PATH: /app/artifacts/model.joblib
+      API_STATE_PATH: /app/var/api_state.sqlite3
+      SERPAPI_API_KEY: ${SERPAPI_API_KEY:-}
+      WEATHERAPI_API_KEY: ${WEATHERAPI_API_KEY:-}
+      SERPAPI_DAILY_LIMIT: ${SERPAPI_DAILY_LIMIT:-0}
+      SERPAPI_31DAY_LIMIT: ${SERPAPI_31DAY_LIMIT:-0}
+      WEATHERAPI_DAILY_LIMIT: ${WEATHERAPI_DAILY_LIMIT:-0}
+      WEATHERAPI_31DAY_LIMIT: ${WEATHERAPI_31DAY_LIMIT:-0}
+      WEATHERAPI_FORECAST_DAYS: ${WEATHERAPI_FORECAST_DAYS:-3}
+      AEROPREDICT_API_TOKEN: ${AEROPREDICT_API_TOKEN:-}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173}
+    volumes:
+      - ./artifacts:/app/artifacts:ro
+      - api-state:/app/var
+    restart: unless-stopped
+volumes:
+  api-state:
